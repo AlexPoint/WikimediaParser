@@ -9,11 +9,12 @@ namespace WikitionaryParser.Src.Phrases
 {
     public class EnglishPhrasesParser
     {
+        private readonly HtmlWeb _web = new HtmlWeb();
 
-        public Phrase ParsePhrasePage(string url)
+        public Phrase ParsePhrasePage(string relativeUrl)
         {
-            var web = new HtmlWeb();
-            var document = web.Load(url).DocumentNode;
+            var absoluteUrl = WikitionaryParser.WikitionaryRootUrl + relativeUrl;
+            var document = _web.Load(absoluteUrl).DocumentNode;
 
             // name
             var name = HtmlEntity.DeEntitize(document.SelectSingleNode("//h1[@id='firstHeading']").InnerText.Trim());
@@ -63,14 +64,15 @@ namespace WikitionaryParser.Src.Phrases
             {
                 Name = name,
                 DefinitionsAndExamples = definitionsAndExamples,
-                Synonyms = synonyms
+                Synonyms = synonyms,
+                SourceRelativeUrl = relativeUrl 
             };
         }
 
-        public List<string> ParsePhrasePageUrlsIn(string url)
+        public List<string> ParsePhrasePageUrlsIn(string relativeUrl)
         {
-            var web = new HtmlWeb();
-            var document = web.Load(url).DocumentNode;
+            var absoluteUrl = WikitionaryParser.WikitionaryRootUrl + relativeUrl;
+            var document = _web.Load(absoluteUrl).DocumentNode;
 
             var phrasePageUrls = document
                 .SelectNodes("//div[@id='mw-pages']//table//li//a")
@@ -81,10 +83,10 @@ namespace WikitionaryParser.Src.Phrases
             return phrasePageUrls;
         }
 
-        public string ParseNextPageUrl(string url)
+        public string ParseNextPageUrl(string relativeUrl)
         {
-            var web = new HtmlWeb();
-            var document = web.Load(url).DocumentNode;
+            var absoluteUrl = WikitionaryParser.WikitionaryRootUrl + relativeUrl;
+            var document = _web.Load(absoluteUrl).DocumentNode;
 
             var nextPageNode = document.SelectNodes("//div[@id='mw-pages']/a")
                 .FirstOrDefault(n => n.HasAttributes && n.Attributes.Contains("href") && n.InnerText == "next 200");

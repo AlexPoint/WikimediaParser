@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace WikitionaryParser.Src.Phrases
 {
-    public class Phrase
+    public class Phrase: WikitionaryEntity
     {
         // Properties -------------------------
 

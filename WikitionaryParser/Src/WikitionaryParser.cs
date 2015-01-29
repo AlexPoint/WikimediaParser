@@ -18,19 +18,18 @@ namespace WikitionaryParser.Src
             var results = new List<Phrase>();
             var parser = new EnglishPhrasesParser();
             
-            var currentPageUrl = WikitionaryRootUrl + "/wiki/Category:English_phrases";
+            var currentPageUrl = "/wiki/Category:English_phrases";
             while (!string.IsNullOrEmpty(currentPageUrl))
             {
                 Console.WriteLine("Parsing phrases in '{0}", currentPageUrl);
 
                 // parse phrase in this page
                 var urls = parser.ParsePhrasePageUrlsIn(currentPageUrl);
-                var phrases = urls.Select(u => parser.ParsePhrasePage(WikitionaryRootUrl + u));
+                var phrases = urls.Select(u => parser.ParsePhrasePage(u));
                 results.AddRange(phrases);
 
                 // go to next page (if any)
-                var nextPageUrl = parser.ParseNextPageUrl(currentPageUrl);
-                currentPageUrl = !string.IsNullOrEmpty(nextPageUrl) ? WikitionaryRootUrl + nextPageUrl : null;
+                currentPageUrl = parser.ParseNextPageUrl(currentPageUrl);
             }
 
             return results;
