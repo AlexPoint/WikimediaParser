@@ -51,6 +51,8 @@
     <Compile Include="Src\Phrases\DefinitionAndExamples.cs" />
     <Compile Include="Src\Phrases\EnglishPhrasesParser.cs" />
     <Compile Include="Src\Phrases\Phrase.cs" />
+    <Compile Include="Src\Proverbs\EnglishProverbParser.cs" />
+    <Compile Include="Src\Proverbs\Proverb.cs" />
     <Compile Include="Src\WikitionaryEntity.cs" />
     <Compile Include="Src\WikitionaryParser.cs" />
   </ItemGroup>
