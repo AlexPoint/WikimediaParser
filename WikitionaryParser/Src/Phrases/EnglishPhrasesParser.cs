@@ -19,25 +19,43 @@ namespace WikitionaryParser.Src.Phrases
             var name = HtmlEntity.DeEntitize(document.SelectSingleNode("//h1[@id='firstHeading']").InnerText.Trim());
 
             // definitions and examples
-            var definitionsAndExamples = document.SelectNodes("//div[@id='mw-content-text']/ol/li")
-                .Select(n => new DefinitionAndExamples()
+            var definitionsAndExamples = new List<DefinitionAndExamples>();
+            var defNodes = document.SelectNodes("//div[@id='mw-content-text']/ol[1]/li");
+            foreach (var defNode in defNodes)
+            {
+                var clone = defNode.CloneNode(true);
+                var childrenToRemove = clone.SelectNodes("./dl|./ul");
+                if (childrenToRemove != null)
                 {
-                    Definition =
-                        string.Join(" ",
-                            n.ChildNodes.Where(child => child.Name != "dl").Select(child => child.InnerText)),
-                    Examples = n.SelectNodes(".//dl/dd") != null ?
-                        n.SelectNodes(".//dl/dd").Select(exNode => exNode.InnerText.Trim()).ToList():
-                        new List<string>()
-                })
-                .ToList();
+                    foreach (var childToRemove in childrenToRemove)
+                    {
+                        clone.RemoveChild(childToRemove);
+                    }
+                }
+                var definition = clone.InnerText.Trim();
+
+                var examples = defNode.SelectNodes("./dl/dd") != null
+                    ? defNode.SelectNodes("./dl/dd").Select(exNode => HtmlEntity.DeEntitize(exNode.InnerText.Trim())).ToList()
+                    : new List<string>();
+                var quotes = defNode.SelectNodes("./ul/li//dd") != null
+                    ? defNode.SelectNodes("./ul/li//dd").Select(ddNode => HtmlEntity.DeEntitize(ddNode.InnerText.Trim())).ToList()
+                    : new List<string>();
+
+                definitionsAndExamples.Add(new DefinitionAndExamples()
+                {
+                    Definition = definition,
+                    Examples = examples,
+                    Quotes = quotes
+                });
+            }
 
             // synonyms
             var synonyms = new List<string>();
-            var syonoymNodes = document.SelectNodes("//span[@id='Synonyms']/parent/following-sibling//a");
+            var syonoymNodes = document.SelectNodes("//span[@id='Synonyms']/../following-sibling::ul//a");
             if (syonoymNodes != null)
             {
                 synonyms = syonoymNodes
-                    .Select(a => a.InnerText.Trim())
+                    .Select(a => HtmlEntity.DeEntitize(a.InnerText.Trim()))
                     .ToList();
             }
 

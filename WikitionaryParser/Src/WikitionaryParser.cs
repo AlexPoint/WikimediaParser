@@ -11,17 +11,29 @@ namespace WikitionaryParser.Src
     public class WikitionaryParser
     {
         public const string WikitionaryRootUrl = "http://en.wiktionary.org";
-        private const string WikiRootUrl = WikitionaryRootUrl + "/wiki/";
 
 
         public List<Phrase> ParseAllEnglishPhrases()
         {
-            var englishPhrasesRootUrl = WikitionaryRootUrl + "Category:English_phrases";
+            var results = new List<Phrase>();
+            var parser = new EnglishPhrasesParser();
+            
+            var currentPageUrl = WikitionaryRootUrl + "/wiki/Category:English_phrases";
+            while (!string.IsNullOrEmpty(currentPageUrl))
+            {
+                Console.WriteLine("Parsing phrases in '{0}", currentPageUrl);
 
-            var web = new HtmlWeb();
-            var document = web.Load(englishPhrasesRootUrl);
+                // parse phrase in this page
+                var urls = parser.ParsePhrasePageUrlsIn(currentPageUrl);
+                var phrases = urls.Select(u => parser.ParsePhrasePage(WikitionaryRootUrl + u));
+                results.AddRange(phrases);
 
-            return null;
+                // go to next page (if any)
+                var nextPageUrl = parser.ParseNextPageUrl(currentPageUrl);
+                currentPageUrl = !string.IsNullOrEmpty(nextPageUrl) ? WikitionaryRootUrl + nextPageUrl : null;
+            }
+
+            return results;
         }
     }
 }

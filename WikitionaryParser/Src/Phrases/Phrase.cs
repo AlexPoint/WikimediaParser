@@ -25,7 +25,7 @@ namespace WikitionaryParser.Src.Phrases
                 Console.WriteLine("-- Defs:");
                 foreach (var definitionAndExamples in DefinitionsAndExamples)
                 {
-                    Console.WriteLine(definitionAndExamples.Definition);
+                    definitionAndExamples.Print();
                 } 
             }
             if (Synonyms.Any())

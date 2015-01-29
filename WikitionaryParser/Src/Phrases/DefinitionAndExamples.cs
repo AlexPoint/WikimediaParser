@@ -13,13 +13,24 @@ namespace WikitionaryParser.Src.Phrases
 
         public string Definition { get; set; }
         public List<string> Examples { get; set; }
+        public List<string> Quotes { get; set; }
 
 
         // Methods ----------------
 
         public override string ToString()
         {
-            return string.Format("{0} ({1})", this.Definition, string.Join(" | ", this.Examples));
+            return string.Format("{0} ({1})", this.Definition, 
+                this.Examples.Any() ? string.Join(" | ", this.Examples): string.Join(" | ", this.Quotes));
+        }
+
+        public void Print()
+        {
+            Console.WriteLine(Definition);
+            foreach (var example in Examples.Union(Quotes))
+            {
+                Console.WriteLine("--> " + example);
+            }
         }
     }
 }
