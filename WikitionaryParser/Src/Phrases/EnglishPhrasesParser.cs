@@ -90,7 +90,7 @@ namespace WikitionaryParser.Src.Phrases
                 .FirstOrDefault(n => n.HasAttributes && n.Attributes.Contains("href") && n.InnerText == "next 200");
             if(nextPageNode != null)
             {
-                return nextPageNode.Attributes["href"].Value;
+                return HtmlEntity.DeEntitize(nextPageNode.Attributes["href"].Value);
             }
             else
             {
