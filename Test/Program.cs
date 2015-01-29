@@ -12,10 +12,10 @@ namespace Test
         static void Main(string[] args)
         {
             var parser = new WikitionaryParser.Src.WikitionaryParser();
-            var proverbs = parser.ParseAllEnglishProverbs();
+            var idioms = parser.ParseAllEnglishIdioms();
 
-            Console.WriteLine("{0} proverbs parsed:", proverbs.Count);
-            foreach (var proverb in proverbs)
+            Console.WriteLine("{0} idioms parsed:", idioms.Count);
+            foreach (var proverb in idioms)
             {
                 proverb.Print();
                 Console.WriteLine("-------------");

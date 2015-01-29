@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using HtmlAgilityPack;
+using WikitionaryParser.Src.Idioms;
 using WikitionaryParser.Src.Phrases;
 using WikitionaryParser.Src.Proverbs;
 
@@ -15,6 +16,43 @@ namespace WikitionaryParser.Src
     public class WikitionaryParser
     {
         public const string WikitionaryRootUrl = "http://en.wiktionary.org";
+
+
+        /// <summary>
+        /// Parses all the English proverbs on wikitionary.org
+        /// </summary>
+        public List<Idiom> ParseAllEnglishIdioms()
+        {
+            var results = new List<Idiom>();
+            var parser = new EnglishIdiomsParser();
+
+            var currentPageUrl = "/wiki/Category:English_idioms";
+            while (!string.IsNullOrEmpty(currentPageUrl))
+            {
+                Console.WriteLine("Parsing idioms in '{0}", currentPageUrl);
+
+                // parse phrase in this page
+                var urls = parser.ParseIdiomPageUrlsIn(currentPageUrl);
+                foreach (var url in urls)
+                {
+                    try
+                    {
+                        var idiom = parser.ParseIdiomPage(url);
+                        results.Add(idiom);
+                    }
+                    catch (Exception)
+                    {
+                        // fails silently
+                        Console.WriteLine("Couldn't parse idiom at '{0}'", url);
+                    }
+                }
+
+                // go to next page (if any)
+                currentPageUrl = parser.ParseNextPageUrl(currentPageUrl);
+            }
+
+            return results;
+        }
 
         /// <summary>
         /// Parses all the English proverbs on wikitionary.org
