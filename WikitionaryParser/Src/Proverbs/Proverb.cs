@@ -7,6 +7,9 @@ using WikitionaryParser.Src.Phrases;
 
 namespace WikitionaryParser.Src.Proverbs
 {
+    /// <summary>
+    /// A proverb parsed on wikitionary
+    /// </summary>
     public class Proverb: WikitionaryEntity
     {
         // Properties ---------------------
@@ -17,6 +20,9 @@ namespace WikitionaryParser.Src.Proverbs
 
         // Methods ------------------------
 
+        /// <summary>
+        /// Prints this entity in the console
+        /// </summary>
         public void Print()
         {
             Console.WriteLine(Name);

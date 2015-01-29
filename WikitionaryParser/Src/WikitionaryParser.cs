@@ -9,10 +9,16 @@ using WikitionaryParser.Src.Proverbs;
 
 namespace WikitionaryParser.Src
 {
+    /// <summary>
+    /// Global wikitionary parser
+    /// </summary>
     public class WikitionaryParser
     {
         public const string WikitionaryRootUrl = "http://en.wiktionary.org";
 
+        /// <summary>
+        /// Parses all the English proverbs on wikitionary.org
+        /// </summary>
         public List<Proverb> ParseAllEnglishProverbs()
         {
             var results = new List<Proverb>();
@@ -46,6 +52,9 @@ namespace WikitionaryParser.Src
             return results;
         }
 
+        /// <summary>
+        /// Parses all the English phrases on Wikitionary
+        /// </summary>
         public List<Phrase> ParseAllEnglishPhrases()
         {
             var results = new List<Phrase>();

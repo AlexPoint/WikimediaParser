@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace WikitionaryParser.Src.Phrases
 {
+    /// <summary>
+    /// A phrase parsed on wikitionary
+    /// </summary>
     public class Phrase: WikitionaryEntity
     {
         // Properties -------------------------
@@ -17,6 +20,9 @@ namespace WikitionaryParser.Src.Phrases
 
         // Methods ----------------------------
 
+        /// <summary>
+        /// Prints this entity in the console
+        /// </summary>
         public void Print()
         {
             Console.WriteLine(Name);

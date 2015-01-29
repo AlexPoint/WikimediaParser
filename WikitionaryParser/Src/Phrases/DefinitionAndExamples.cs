@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace WikitionaryParser.Src.Phrases
 {
+    /// <summary>
+    /// A class containing an entity's definition and a collection of examples for this entity
+    /// </summary>
     public class DefinitionAndExamples
     {
         // Properties -------------
@@ -18,12 +21,9 @@ namespace WikitionaryParser.Src.Phrases
 
         // Methods ----------------
 
-        public override string ToString()
-        {
-            return string.Format("{0} ({1})", this.Definition, 
-                this.Examples.Any() ? string.Join(" | ", this.Examples): string.Join(" | ", this.Quotes));
-        }
-
+        /// <summary>
+        /// Prints this entity in the console
+        /// </summary>
         public void Print()
         {
             Console.WriteLine(Definition);

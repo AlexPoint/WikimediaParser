@@ -8,10 +8,20 @@ using WikitionaryParser.Src.Phrases;
 
 namespace WikitionaryParser.Src.Proverbs
 {
+    /// <summary>
+    /// A wikitionary parser specific to English proverbs
+    /// </summary>
     public class EnglishProverbParser
     {
+        // TODO: refactor this parser with the EnglishPhraseParser
+
         private readonly HtmlWeb _web = new HtmlWeb();
 
+        /// <summary>
+        /// Parses a Proverb on a wikitionary page
+        /// </summary>
+        /// <param name="relativeUrl">The relative url of the wikitionary page</param>
+        /// <returns>A fully parsed Proverb object</returns>
         public Proverb ParseProverbPage(string relativeUrl)
         {
             var absoluteUrl = WikitionaryParser.WikitionaryRootUrl + relativeUrl;
@@ -59,6 +69,11 @@ namespace WikitionaryParser.Src.Proverbs
             };
         }
 
+        /// <summary>
+        /// Parses the list of proverb page urls in a given page
+        /// </summary>
+        /// <param name="relativeUrl">The relative url of the wikitionary page</param>
+        /// <returns>A collection of relative urls of proverb pages</returns>
         public List<string> ParseProverbPageUrlsIn(string relativeUrl)
         {
             var absoluteUrl = WikitionaryParser.WikitionaryRootUrl + relativeUrl;
@@ -73,6 +88,9 @@ namespace WikitionaryParser.Src.Proverbs
             return phrasePageUrls;
         }
 
+        /// <summary>
+        /// Parses the urls of the next page list
+        /// </summary>
         public string ParseNextPageUrl(string relativeUrl)
         {
             var absoluteUrl = WikitionaryParser.WikitionaryRootUrl + relativeUrl;

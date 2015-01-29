@@ -7,6 +7,9 @@ using HtmlAgilityPack;
 
 namespace WikitionaryParser.Src.Phrases
 {
+    /// <summary>
+    /// A wikitionary parser specific to English phrases
+    /// </summary>
     public class EnglishPhrasesParser
     {
         private readonly HtmlWeb _web = new HtmlWeb();
