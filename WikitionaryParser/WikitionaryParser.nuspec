@@ -2,14 +2,14 @@
 <package >
   <metadata>
     <id>WikitionaryParser</id>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <title>WikitionaryParser</title>
     <authors>AlexPoint</authors>
     <owners>AlexPoint</owners>
     <projectUrl>https://github.com/AlexPoint/WikitionaryParser</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>A parser for the website wikitionary.org. Quite rudimentary for now, has to be completed bit by bit.</description>
-    <releaseNotes>First version of the parser for English phrases and proverbs</releaseNotes>
+    <releaseNotes>Added parsing of idioms on wkitionary</releaseNotes>
     <copyright>Copyright 2015</copyright>
     <tags>Wikitionary parser</tags>
   </metadata>
