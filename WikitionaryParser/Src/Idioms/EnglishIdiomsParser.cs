@@ -18,7 +18,7 @@ namespace WikitionaryParser.Src.Idioms
         private List<string> H3HeadLinesToIgnore = new List<string>()
         {
             "Alternative forms", "See also", "Etymology", "References", "External links", "Pronunciation",
-            "Usage notes", "Related terms"
+            "Usage notes", "Related terms", "Anagrams", "Synonyms", "Quotations"
         };
 
         public Idiom ParseIdiomPage(string relativeUrl)
@@ -29,37 +29,53 @@ namespace WikitionaryParser.Src.Idioms
             // name
             var name = HtmlEntity.DeEntitize(document.SelectSingleNode("//h1[@id='firstHeading']").InnerText.Trim());
 
-            // definitions and examples
-            var definitionsAndExamples = new List<DefinitionAndExamples>();
-            var defNodes = document.SelectNodes("//div[@id='mw-content-text']/ol[1]/li");
-            foreach (var defNode in defNodes)
+            // usages
+            var usages = new List<Usage>();
+            var relevantUsageSections = document.SelectNodes("//h3/span[@class='mw-headline']");
+            if (relevantUsageSections != null)
             {
-                var clone = defNode.CloneNode(true);
-                var childrenToRemove = clone.SelectNodes("./dl|./ul");
-                if (childrenToRemove != null)
+                foreach (var relevantUsageSection in relevantUsageSections.Where(s => !H3HeadLinesToIgnore.Contains(s.InnerText.Trim())))
                 {
-                    foreach (var childToRemove in childrenToRemove)
+                    var olNode = relevantUsageSection.SelectSingleNode("./../following-sibling::ol");
+                    var definitionsAndExamples = new List<DefinitionAndExamples>();
+                    var defNodes = olNode.SelectNodes("./li");
+                    foreach (var defNode in defNodes)
                     {
-                        clone.RemoveChild(childToRemove);
+                        var clone = defNode.CloneNode(true);
+                        var childrenToRemove = clone.SelectNodes("./dl|./ul");
+                        if (childrenToRemove != null)
+                        {
+                            foreach (var childToRemove in childrenToRemove)
+                            {
+                                clone.RemoveChild(childToRemove);
+                            }
+                        }
+                        var definition = clone.InnerText.Trim();
+
+                        var examples = defNode.SelectNodes("./dl/dd") != null
+                            ? defNode.SelectNodes("./dl/dd").Select(exNode => HtmlEntity.DeEntitize(exNode.InnerText.Trim())).ToList()
+                            : new List<string>();
+                        var quotes = defNode.SelectNodes("./ul/li//dd") != null
+                            ? defNode.SelectNodes("./ul/li//dd").Select(ddNode => HtmlEntity.DeEntitize(ddNode.InnerText.Trim())).ToList()
+                            : new List<string>();
+
+                        definitionsAndExamples.Add(new DefinitionAndExamples()
+                        {
+                            Definition = definition,
+                            Examples = examples,
+                            Quotes = quotes
+                        });
                     }
+
+                    var usage = new Usage()
+                    {
+                        DefinitionsAndExamples = definitionsAndExamples,
+                        PartOfSpeech = HtmlEntity.DeEntitize(relevantUsageSection.InnerText.Trim())
+                    };
+                    usages.Add(usage);
                 }
-                var definition = clone.InnerText.Trim();
-
-                var examples = defNode.SelectNodes("./dl/dd") != null
-                    ? defNode.SelectNodes("./dl/dd").Select(exNode => HtmlEntity.DeEntitize(exNode.InnerText.Trim())).ToList()
-                    : new List<string>();
-                var quotes = defNode.SelectNodes("./ul/li//dd") != null
-                    ? defNode.SelectNodes("./ul/li//dd").Select(ddNode => HtmlEntity.DeEntitize(ddNode.InnerText.Trim())).ToList()
-                    : new List<string>();
-
-                definitionsAndExamples.Add(new DefinitionAndExamples()
-                {
-                    Definition = definition,
-                    Examples = examples,
-                    Quotes = quotes
-                });
             }
-
+            
             // synonyms
             var synonyms = new List<string>();
             var syonoymNodes = document.SelectNodes("//span[@id='Synonyms']/../following-sibling::ul//a");
@@ -69,29 +85,7 @@ namespace WikitionaryParser.Src.Idioms
                     .Select(a => HtmlEntity.DeEntitize(a.InnerText.Trim()))
                     .ToList();
             }
-
-            // Part of speech
-            var h3Headlines = document.SelectNodes("//h3/span[@class='mw-headline']");
-            var partOfSpeech = "";
-            if (h3Headlines != null)
-            {
-                var headLines = h3Headlines.Select(n => n.InnerText.Trim())
-                    .Where(s => !H3HeadLinesToIgnore.Contains(s))
-                    .ToList();
-                if (headLines.Count > 1)
-                {
-                    Console.WriteLine("Found {0} headlines in '{1}': {2}", headLines.Count, relativeUrl, string.Join("|", headLines));
-                }
-                if (headLines.Any())
-                {
-                    partOfSpeech = headLines.First();
-                }
-                else
-                {
-                    Console.WriteLine("Couldn't find part of speech for '{0}'", relativeUrl);
-                }
-            }
-
+            
             // Categories
             var categories = document.SelectNodes("//div[@id='mw-normal-catlinks']/ul/li/a")
                 .Select(n => n.InnerText.Trim())
@@ -100,11 +94,10 @@ namespace WikitionaryParser.Src.Idioms
             return new Idiom()
             {
                 Name = name,
-                DefinitionsAndExamples = definitionsAndExamples,
                 Synonyms = synonyms,
                 SourceRelativeUrl = relativeUrl,
-                PartOfSpeech = partOfSpeech,
-                Categories = categories
+                Categories = categories,
+                Usages = usages
             };
         }
 

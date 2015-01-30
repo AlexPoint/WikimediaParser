@@ -38,6 +38,11 @@ namespace WikitionaryParser.Src
                     try
                     {
                         var idiom = parser.ParseIdiomPage(url);
+                        if (idiom.Usages == null || !idiom.Usages.Any())
+                        {
+                            throw new Exception("Parse exception");
+                        }
+
                         results.Add(idiom);
                     }
                     catch (Exception)

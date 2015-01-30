@@ -10,22 +10,26 @@ namespace WikitionaryParser.Src.Idioms
     public class Idiom: WikitionaryEntity
     {
         public string Name { get; set; }
-        public List<DefinitionAndExamples> DefinitionsAndExamples { get; set; }
         public List<string> Synonyms { get; set; }
         public List<string> Categories { get; set; }
-        public string PartOfSpeech { get; set; }
+        public List<Usage> Usages { get; set; }
 
 
         public void Print()
         {
-            Console.WriteLine(Name + " (" + PartOfSpeech + " - " + string.Join("|", Categories) + ")");
-            Console.WriteLine("Defs:");
-            foreach (var definitionAndExample in DefinitionsAndExamples)
+            Console.WriteLine(Name + " (" + string.Join(" | ", Usages.Select(u => u.PartOfSpeech)) + " - " + string.Join("|", Categories) + ")");
+            Console.WriteLine("Usages:");
+            foreach (var usage in Usages)
             {
-                Console.WriteLine(definitionAndExample.Definition);
-                foreach (var example in definitionAndExample.Examples.Union(definitionAndExample.Quotes))
+                Console.WriteLine(usage.PartOfSpeech);
+                foreach (var definitionAndExample in usage.DefinitionsAndExamples)
                 {
-                    Console.WriteLine("--> " + example);
+                    Console.WriteLine(definitionAndExample.Definition);
+                    foreach (var example in definitionAndExample.Examples.Union(definitionAndExample.Quotes))
+                    {
+                        Console.WriteLine("--> " + example);
+                    }
+                    Console.WriteLine("--");
                 }
                 Console.WriteLine("---");
             }
