@@ -18,13 +18,23 @@ namespace WikitionaryParser.Src.Idioms
         private List<string> H3HeadLinesToIgnore = new List<string>()
         {
             "Alternative forms", "See also", "Etymology", "References", "External links", "Pronunciation",
-            "Usage notes", "Related terms", "Anagrams", "Synonyms", "Quotations"
+            "Usage notes", "Related terms", "Anagrams", "Synonyms", "Quotations", "Derived terms"
         };
 
         public Idiom ParseIdiomPage(string relativeUrl)
         {
             var absoluteUrl = WikitionaryParser.WikitionaryRootUrl + relativeUrl;
             var document = _web.Load(absoluteUrl).DocumentNode;
+
+            // delete all nodes for other sections than English
+            var nodesToRemove = document.SelectNodes("//hr/following-sibling::*");
+            if (nodesToRemove != null)
+            {
+                foreach (var nodeToRemove in nodesToRemove)
+                {
+                    nodeToRemove.Remove();
+                }
+            }
 
             // name
             var name = HtmlEntity.DeEntitize(document.SelectSingleNode("//h1[@id='firstHeading']").InnerText.Trim());

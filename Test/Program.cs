@@ -12,6 +12,10 @@ namespace Test
     {
         static void Main(string[] args)
         {
+            var idiomParser = new EnglishIdiomsParser();
+            var idiom = idiomParser.ParseIdiomPage("/wiki/fucking_hell");
+            idiom.Print();
+
             var parser = new WikitionaryParser.Src.WikitionaryParser();
             var idioms = parser.ParseAllEnglishIdioms();
 
