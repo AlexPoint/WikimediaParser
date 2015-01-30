@@ -9,6 +9,7 @@ namespace WikitionaryParser.Src
     /// <summary>
     /// An entity parsed on wikitionary
     /// </summary>
+    [Serializable]
     public class WikitionaryEntity
     {
         public string SourceRelativeUrl { get; set; }

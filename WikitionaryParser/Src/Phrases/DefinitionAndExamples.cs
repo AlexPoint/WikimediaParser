@@ -10,6 +10,7 @@ namespace WikitionaryParser.Src.Phrases
     /// <summary>
     /// A class containing an entity's definition and a collection of examples for this entity
     /// </summary>
+    [Serializable]
     public class DefinitionAndExamples
     {
         // Properties -------------

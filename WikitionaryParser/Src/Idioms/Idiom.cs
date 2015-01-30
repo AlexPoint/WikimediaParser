@@ -7,6 +7,7 @@ using WikitionaryParser.Src.Phrases;
 
 namespace WikitionaryParser.Src.Idioms
 {
+    [Serializable]
     public class Idiom: WikitionaryEntity
     {
         public string Name { get; set; }
