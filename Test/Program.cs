@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
+using WikitionaryParser.Src.Frequencies;
 using WikitionaryParser.Src.Idioms;
 using WikitionaryParser.Src.Phrases;
 
@@ -21,11 +22,29 @@ namespace Test
 
         static void Main(string[] args)
         {
+            var wordFrequencyParser = new WordFrequencyParser();
+            var wordFrequencies = wordFrequencyParser.ParseWordFrequencies(WordFrequencyParser.FrequencyListType.TvShows);
+
+            Console.WriteLine("{0} words parsed", wordFrequencies.Count);
+            var duplicates = wordFrequencies.GroupBy(wf => wf.Word)
+                .Where(grp => grp.Count() > 2)
+                .ToList();
+            Console.WriteLine("Duplicates:");
+            foreach (var duplicate in duplicates)
+            {
+                Console.WriteLine("{0}", string.Join(", ", duplicate));
+            }
+            /*foreach (var wordAndFrequency in wordFrequencies)
+            {
+                Console.WriteLine("{0} -> {1}", wordAndFrequency.Word, wordAndFrequency.Frequency);
+            }*/
+
+
             /*var idiomParser = new EnglishIdiomsParser();
             var idiom = idiomParser.ParseIdiomPage("/wiki/out_of_the_box");
             idiom.Print();*/
 
-            var allIdioms = DeserializeIdioms(PathToSerializedIdioms);
+            /*var allIdioms = DeserializeIdioms(PathToSerializedIdioms);
 
             var nonPhrasalVerbIdioms = allIdioms.Where(id => !id.Categories.Contains("English phrasal verbs")).ToList();
             var idiomsWithMoreThan1Word = nonPhrasalVerbIdioms.Where(id => id.Name.Split(' ').Where(s => !EnglishStopWords.Contains(s)).Count() > 1).ToList();
@@ -33,7 +52,7 @@ namespace Test
             foreach (var idiom in idiomsWithMoreThan1Word)
             {
                 Console.WriteLine(idiom.Name);
-            }
+            }*/
             
             /*foreach (var idiom in idiomsWithMoreThan1Word.Where(id => id.Usages.All(u => u.DefinitionsAndExamples.Any(d => d.Definition.StartsWith("Used other than as")))))
             {

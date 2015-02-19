@@ -48,6 +48,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Src\Frequencies\WordAndFrequency.cs" />
+    <Compile Include="Src\Frequencies\WordFrequencyParser.cs" />
     <Compile Include="Src\Idioms\EnglishIdiomsParser.cs" />
     <Compile Include="Src\Idioms\Idiom.cs" />
     <Compile Include="Src\Idioms\Usage.cs" />
