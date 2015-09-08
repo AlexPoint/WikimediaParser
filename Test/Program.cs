@@ -7,6 +7,7 @@ using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using WikitionaryDumpParser.Src;
 using WikitionaryParser.Src.Frequencies;
@@ -25,16 +26,49 @@ namespace Test
 
         static void Main(string[] args)
         {
+            // Parse and retrieve page ids 
             var pagePropsSqlDumFile = PathToProject + "Data/enwiki-20150901-page_props.sql";
             var pageIdsFilePath = PathToProject + "Output/pageIds.txt";
             var parser = new WikiMediaMySqlDumpParser();
-            parser.ParsePageIds(pagePropsSqlDumFile, pageIdsFilePath);
+            //parser.ParsePageIds(pagePropsSqlDumFile, pageIdsFilePath);
 
-            var pageIds = File.ReadLines(pageIdsFilePath);
+            var pageIds = File.ReadLines(pageIdsFilePath)
+                .Where(line => !string.IsNullOrEmpty(line) && line.Contains("|"))
+                .Select(line => new Tuple<int, string>(int.Parse(line.Split('|').First()), line.Split('|').Last()))
+                .ToList();
             Console.WriteLine("{0} page ids found", pageIds.Count());
 
-            //File.WriteAllLines(pageIdsFilePath, pageIds.Select(tup => string.Format("{0}|{1}", tup.Item1, tup.Item2)).ToList());
+            // Parse and retrieve fr language links
+            var langLinksSqlDumFile = PathToProject + "Data/enwiki-20150901-langlinks.sql";
+            var langLinksFilePath = PathToProject + "Output/langLinks.txt";
+            //parser.ParseLanguageLinks(langLinksSqlDumFile, langLinksFilePath);
 
+            var languageLinks = File.ReadLines(langLinksFilePath)
+                .Where(line => !string.IsNullOrEmpty(line) && line.Contains("|"))
+                .Select(line => new Tuple<int, string, string>(int.Parse(line.Split('|').First()), line.Split('|')[1], line.Split('|').Last()))
+                .ToList();
+            Console.WriteLine("{0} language links found", pageIds.Count());
+
+            // Show results
+            Console.WriteLine("--- Sample of parsed translations ---");
+            foreach (var languageLink in languageLinks)
+            {
+                // Filter non-relevant pages such as 
+                // - categories: George Kearsley Shaw
+                // - proper nouns: Mingus, Charles
+                if (IsEntryRelevantForTranslation(languageLink.Item3))
+                {
+                    var linkedPage = pageIds.FirstOrDefault(pid => pid.Item1 == languageLink.Item1);
+                    if (linkedPage != null)
+                    {
+                        Console.WriteLine("{0} -> {1}", linkedPage.Item2, languageLink.Item3);
+                    }
+                    else
+                    {
+                        Console.WriteLine("Missing page id #{0} (lang link '{1}')", languageLink.Item1, languageLink.Item3);
+                    }
+                }
+            }
 
             // Parse dictionary in wiktionary page content
             /*var srcLanguage = "en";
@@ -67,6 +101,20 @@ namespace Test
 
             Console.WriteLine("======= END ========");
             Console.ReadKey();
+        }
+
+        private static Regex ProperNounRegex = new Regex(@"[A-Z][a-z]+( [A-Z][a-z]+)+", RegexOptions.Compiled);
+        private static Regex CategoryRegex = new Regex("Catégorie:.*", RegexOptions.Compiled);
+        private static bool IsEntryRelevantForTranslation(string frName)
+        {
+            if (string.IsNullOrEmpty(frName) 
+                || ProperNounRegex.IsMatch(frName) 
+                || CategoryRegex.IsMatch(frName))
+            {
+                return false;
+            }
+
+            return true;
         }
 
         private static void SerializeIdioms(List<Idiom> idioms, string filePath)
