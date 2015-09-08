@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace WikitionaryDumpParser.Src
 {
-    class TranslationEntry
+    public class TranslationEntry
     {
         public string Name { get; set; }
         public string Language { get; set; }

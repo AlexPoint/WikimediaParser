@@ -13,9 +13,9 @@ namespace WiktionaryDumpParser.Src
     public class WiktionaryDumpParser
     {
 
-        public List<WiktionaryEntry> ParseDumpFile(string dumpFilePath, string sourceLanguage, List<string> targetLanguages, string outputFilePath)
+        public List<TranslationEntry> ParseDumpFile(string dumpFilePath, string sourceLanguage, List<string> targetLanguages, string outputFilePath)
         {
-            var entries = new List<WiktionaryEntry>();
+            var entries = new List<TranslationEntry>();
 
             using(var inputFileStream = File.OpenRead(dumpFilePath))
             {
@@ -34,22 +34,15 @@ namespace WiktionaryDumpParser.Src
                             if (foundText)
                             {
                                 var text = reader.ReadInnerXml();
-                                var translationEntries = ExtractPosTranslations(text, targetLanguages, title)
+                                var translationEntries = ExtractPosTranslations(text, targetLanguages, title);
+
+                                // Write the translations in the output file as we retrieve them
+                                var lines = translationEntries
                                     .Select(ent => string.Format("{0}|{1}|{2}|{3}|{4}|{5}", title, sourceLanguage, ent.Language, ent.Name, ent.Pos, ent.Synset))
                                     .ToList();
-                                File.AppendAllLines(outputFilePath, translationEntries);
-                                
-                                /*var posTranslations = ExtractPosTranslations(text, targetLanguages);
-                                if (posTranslations != null && posTranslations.Any())
-                                {
-                                    var entry = new WiktionaryEntry()
-                                                            {
-                                                                Name = title,
-                                                                Language = sourceLanguage,
-                                                                PosTranslations = posTranslations
-                                                            };
-                                    entries.Add(entry); 
-                                }*/
+                                File.AppendAllLines(outputFilePath, lines);
+
+                                entries.AddRange(translationEntries);
                             }
                         }
                     }
@@ -69,7 +62,7 @@ namespace WiktionaryDumpParser.Src
 
             // match translations section
             var sections = new List<TextSection>();
-            var sectionPattern = "\\={2,}[\\w\\s]+\\={2,}";
+            const string sectionPattern = "\\={2,}[\\w\\s]+\\={2,}";
             var sectionMatches = Regex.Matches(text, sectionPattern);
             for (var i = 0; i < sectionMatches.Count; i++)
             {
@@ -80,7 +73,7 @@ namespace WiktionaryDumpParser.Src
             // match translation synset definitions
             // {{trans-see|exit}}, {{trans-top|style of living}}
             var synsetSections = new List<SynsetSection>();
-            var translationSynsetPattern = "\\{\\{((check)?trans-(top|see)(-also)?|ttbc-top)(\\|)?([^\\}]+)?\\}\\}";
+            const string translationSynsetPattern = "\\{\\{((check)?trans-(top|see)(-also)?|ttbc-top)(\\|)?([^\\}]+)?\\}\\}";
             var translationSynsetMatches = Regex.Matches(text, translationSynsetPattern);
             for (var i = 0; i < translationSynsetMatches.Count; i++)
             {
@@ -144,26 +137,6 @@ namespace WiktionaryDumpParser.Src
                 }
             }
 
-            /*var posTranslations = translationEntries
-                .GroupBy(ent => ent.Pos)
-                .Select(grp => new PosTranslations()
-                {
-                    Pos = grp.Key,
-                    SynsetTranslations = grp.GroupBy(ent => ent.Synset)
-                        .Select(synGrp => new SynsetTranslation()
-                        {
-                            Definition = synGrp.Key,
-                            Translations = synGrp.Select(ent => new Translation()
-                            {
-                                Language = ent.Language,
-                                Name = ent.Name
-                            })
-                            .ToList()
-                        })
-                        .ToList()
-                })
-                .ToList();
-            return posTranslations;*/
             return translationEntries;
         }
     }

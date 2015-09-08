@@ -31,7 +31,30 @@ namespace Test
             var dumpParser = new WiktionaryDumpParser.Src.WiktionaryDumpParser();
             var entries = dumpParser.ParseDumpFile(PathToWiktionaryPages, srcLanguage, tgtLanguages, outputFilePath);
 
-            Console.WriteLine("Parsed {0} {1} entries", entries.Count, srcLanguage);
+
+
+            /*var posTranslations = translationEntries
+                .GroupBy(ent => ent.Pos)
+                .Select(grp => new PosTranslations()
+                {
+                    Pos = grp.Key,
+                    SynsetTranslations = grp.GroupBy(ent => ent.Synset)
+                        .Select(synGrp => new SynsetTranslation()
+                        {
+                            Definition = synGrp.Key,
+                            Translations = synGrp.Select(ent => new Translation()
+                            {
+                                Language = ent.Language,
+                                Name = ent.Name
+                            })
+                            .ToList()
+                        })
+                        .ToList()
+                })
+                .ToList();
+            return posTranslations;*/
+
+            Console.WriteLine("Parsed {0} {1} entries ({2} distinct)", entries.Count, srcLanguage, entries.Select(ent => ent.Name).Distinct());
 
             Console.WriteLine("======= END ========");
             Console.ReadKey();
