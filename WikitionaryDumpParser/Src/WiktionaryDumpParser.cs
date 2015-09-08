@@ -34,7 +34,7 @@ namespace WiktionaryDumpParser.Src
                             if (foundText)
                             {
                                 var text = reader.ReadInnerXml();
-                                var translationEntries = ExtractPosTranslations(text, targetLanguages)
+                                var translationEntries = ExtractPosTranslations(text, targetLanguages, title)
                                     .Select(ent => string.Format("{0}|{1}|{2}|{3}|{4}|{5}", title, sourceLanguage, ent.Language, ent.Name, ent.Pos, ent.Synset))
                                     .ToList();
                                 File.AppendAllLines(outputFilePath, translationEntries);
@@ -63,7 +63,7 @@ namespace WiktionaryDumpParser.Src
             return entries;
         }
 
-        private List<TranslationEntry> ExtractPosTranslations(string text, List<string> targetLanguages)
+        private List<TranslationEntry> ExtractPosTranslations(string text, List<string> targetLanguages, string title)
         {
             if (string.IsNullOrEmpty(text)){ return new List<TranslationEntry>(); }
 
@@ -89,8 +89,9 @@ namespace WiktionaryDumpParser.Src
             }
 
             // match translations
+            // {{t+check|fr|bistoquet|m}} / {{t-check|ee|dɔla}} / {{t-simple|fr|mouiller}} / {{t-|fr|gouille|f}}
             var translationEntries = new List<TranslationEntry>();
-            var translationPattern = "\\{\\{t(?!erm)[^\\|\\}]*\\|" + string.Join("|", targetLanguages) +"\\|[^\\}]+\\}\\}";
+            var translationPattern = "\\{\\{t(r)?(\\+|\\-)?(check|simple)?\\|" + string.Join("|", targetLanguages) +"\\|[^\\}]+\\}\\}";
             var translationMatches = Regex.Matches(text, translationPattern);
             for (var i = 0; i < translationMatches.Count; i++)
             {
@@ -127,7 +128,14 @@ namespace WiktionaryDumpParser.Src
                     }
                     else
                     {
-                        Console.WriteLine("Couldn't link {0}-{1} to its info in {2}", lang, name, text);
+                        if (title.Contains(":"))
+                        {
+                            Console.WriteLine("Cannot extract translations from page '{0}'", title);
+                        }
+                        else
+                        {
+                            Console.WriteLine("Couldn't link {0}-{1} to its info in {2}", lang, name, text);
+                        }
                     }
                 }
                 else
