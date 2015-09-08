@@ -8,6 +8,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Threading.Tasks;
+using WikitionaryDumpParser.Src;
 using WikitionaryParser.Src.Frequencies;
 using WikitionaryParser.Src.Idioms;
 using WikitionaryParser.Src.Phrases;
@@ -24,16 +25,26 @@ namespace Test
 
         static void Main(string[] args)
         {
-            var srcLanguage = "en";
+            var pagePropsSqlDumFile = PathToProject + "Data/enwiki-20150901-page_props.sql";
+            var pageIdsFilePath = PathToProject + "Output/pageIds.txt";
+            var parser = new WikiMediaMySqlDumpParser();
+            parser.ParsePageIds(pagePropsSqlDumFile, pageIdsFilePath);
+
+            var pageIds = File.ReadLines(pageIdsFilePath);
+            Console.WriteLine("{0} page ids found", pageIds.Count());
+
+            //File.WriteAllLines(pageIdsFilePath, pageIds.Select(tup => string.Format("{0}|{1}", tup.Item1, tup.Item2)).ToList());
+
+
+            // Parse dictionary in wiktionary page content
+            /*var srcLanguage = "en";
             var tgtLanguages = new List<string>() {"fr"};
             var outputFilePath = PathToProject + "Output/en-fr-dictionary.txt";
 
             var dumpParser = new WiktionaryDumpParser.Src.WiktionaryDumpParser();
             var entries = dumpParser.ParseDumpFile(PathToWiktionaryPages, srcLanguage, tgtLanguages, outputFilePath);
-
-
-
-            /*var posTranslations = translationEntries
+            
+            var posTranslations = entries
                 .GroupBy(ent => ent.Pos)
                 .Select(grp => new PosTranslations()
                 {
@@ -52,9 +63,7 @@ namespace Test
                         .ToList()
                 })
                 .ToList();
-            return posTranslations;*/
-
-            Console.WriteLine("Parsed {0} {1} entries ({2} distinct)", entries.Count, srcLanguage, entries.Select(ent => ent.Name).Distinct());
+            Console.WriteLine("Parsed {0} {1} entries ({2} distinct)", entries.Count, srcLanguage, entries.Select(ent => ent.Name).Distinct().Count());*/
 
             Console.WriteLine("======= END ========");
             Console.ReadKey();

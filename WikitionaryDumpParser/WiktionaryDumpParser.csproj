@@ -43,6 +43,7 @@
     <Compile Include="Src\SynsetSection.cs" />
     <Compile Include="Src\TextSection.cs" />
     <Compile Include="Src\TranslationEntry.cs" />
+    <Compile Include="Src\WikiMediaMySqlDumpParser.cs" />
     <Compile Include="Src\WiktionaryDumpParser.cs" />
     <Compile Include="Src\WiktionaryEntry.cs" />
   </ItemGroup>
