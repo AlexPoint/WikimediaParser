@@ -27,16 +27,18 @@ namespace Test
         static void Main(string[] args)
         {
             // Parse and retrieve page ids 
-            var pagePropsSqlDumFile = PathToProject + "Data/enwiki-20150901-page_props.sql";
+            var pagePropsSqlDumFile = PathToProject + "Data/enwiki-20150901-page.sql";
             var pageIdsFilePath = PathToProject + "Output/pageIds.txt";
             var parser = new WikiMediaMySqlDumpParser();
             //parser.ParsePageIds(pagePropsSqlDumFile, pageIdsFilePath);
 
-            var pageIds = File.ReadLines(pageIdsFilePath)
+            /*var allPageIdLines = File.ReadLines(pageIdsFilePath)
+                .ToList();
+            var pageIds = allPageIdLines
                 .Where(line => !string.IsNullOrEmpty(line) && line.Contains("|"))
                 .Select(line => new Tuple<int, string>(int.Parse(line.Split('|').First()), line.Split('|').Last()))
                 .ToList();
-            Console.WriteLine("{0} page ids found", pageIds.Count());
+            Console.WriteLine("{0} page ids found", pageIds.Count());*/
 
             // Parse and retrieve fr language links
             var langLinksSqlDumFile = PathToProject + "Data/enwiki-20150901-langlinks.sql";
@@ -44,14 +46,15 @@ namespace Test
             //parser.ParseLanguageLinks(langLinksSqlDumFile, langLinksFilePath);
 
             var languageLinks = File.ReadLines(langLinksFilePath)
-                .Where(line => !string.IsNullOrEmpty(line) && line.Contains("|"))
-                .Select(line => new Tuple<int, string, string>(int.Parse(line.Split('|').First()), line.Split('|')[1], line.Split('|').Last()))
-                .ToList();
-            Console.WriteLine("{0} language links found", pageIds.Count());
+                .Where(line => !string.IsNullOrEmpty(line))
+                .Select(line => line.Split('|'))
+                .Where(parts => parts.Length == 3)
+                .ToDictionary(parts => int.Parse(parts.First()), parts => new Tuple<string, string>(parts[1], parts[2]));
+            Console.WriteLine("{0} language links found", languageLinks.Count());
 
             // Show results
-            Console.WriteLine("--- Sample of parsed translations ---");
-            foreach (var languageLink in languageLinks)
+            Console.WriteLine("--- Parsed translations ---");
+            /*foreach (var languageLink in languageLinks)
             {
                 // Filter non-relevant pages such as 
                 // - categories: George Kearsley Shaw
@@ -68,7 +71,33 @@ namespace Test
                         Console.WriteLine("Missing page id #{0} (lang link '{1}')", languageLink.Item1, languageLink.Item3);
                     }
                 }
+            }*/
+            var counter = 0;
+            using (var pageIdFileStream = File.OpenRead(pageIdsFilePath))
+            {
+                using (var pageIdReader = new StreamReader(pageIdFileStream))
+                {
+                    while (!pageIdReader.EndOfStream)
+                    {
+                        var line = pageIdReader.ReadLine();
+                        if (line != null)
+                        {
+                            var parts = line.Split('|');
+                            var pageId = int.Parse(parts.First());
+                            var title = parts.Last();
+
+                            Tuple<string, string> translation;
+                            if (languageLinks.TryGetValue(pageId, out translation))
+                            {
+                                //Console.WriteLine("{0} -> {1}", title, translation.Item2);
+                                counter++;
+                            }
+                        }
+                    }
+                }
             }
+            
+            Console.WriteLine("Found {0} translations", counter);
 
             // Parse dictionary in wiktionary page content
             /*var srcLanguage = "en";
@@ -103,13 +132,15 @@ namespace Test
             Console.ReadKey();
         }
 
-        private static Regex ProperNounRegex = new Regex(@"[A-Z][a-z]+( [A-Z][a-z]+)+", RegexOptions.Compiled);
-        private static Regex CategoryRegex = new Regex("Catégorie:.*", RegexOptions.Compiled);
+        private static readonly Regex ProperNounRegex = new Regex(@"[A-Z][a-z]+( [A-Z][a-z]+)+", RegexOptions.Compiled);
+        private static readonly Regex CategoryRegex = new Regex("Catégorie:.*", RegexOptions.Compiled);
+        private static readonly Regex ContainsNumberRegex = new Regex(@"\d{2,}", RegexOptions.Compiled);
         private static bool IsEntryRelevantForTranslation(string frName)
         {
             if (string.IsNullOrEmpty(frName) 
                 || ProperNounRegex.IsMatch(frName) 
-                || CategoryRegex.IsMatch(frName))
+                || CategoryRegex.IsMatch(frName)
+                || ContainsNumberRegex.IsMatch(frName))
             {
                 return false;
             }

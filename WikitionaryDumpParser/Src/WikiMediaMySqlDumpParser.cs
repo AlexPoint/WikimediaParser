@@ -133,7 +133,9 @@ namespace WikitionaryDumpParser.Src
             }
         }
 
-        private const string PageIdPattern = @"\((\d+)\,\'defaultsort\'\,\'(.+)\'(,NULL)?\)";
+        // A wikiepdia page inset looks like
+        // (64578,0,'History_of_Iceland','',278,0,0,0.190001439480112,'20150902131138','20150902131138',679102147,47981,'wikitext')
+        private const string PageIdPattern = @"\((\d+)\,\d+\,\'([^\']+)\'\,[^\)]+\)";
         private static readonly Regex PageIdRegex = new Regex(PageIdPattern, RegexOptions.Compiled);
 
         private Tuple<int, string> ExtractPageAndId(string line)
@@ -142,9 +144,10 @@ namespace WikitionaryDumpParser.Src
             if (match.Success)
             {
                 var id = int.Parse(match.Groups[1].Value);
-                var page = match.Groups[2].Value;
+                var title = match.Groups[2].Value;
+                var displayedTitle = title.Replace("_", " ").Replace("&", " and ");
                 //Console.WriteLine("#{0} -> {1}", id, page);
-                return new Tuple<int, string>(id, page);
+                return new Tuple<int, string>(id, displayedTitle);
             }
             else
             {
