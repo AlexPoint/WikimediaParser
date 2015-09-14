@@ -9,14 +9,20 @@ using System.Threading.Tasks;
 
 namespace WikitionaryDumpParser.Src
 {
-    public class WikiMediaMySqlDumpParser
+    /// <summary>
+    /// Parser for wikimedia MySQL dump files
+    /// </summary>
+    public class MySqlDumpParser
     {
 
-        
+        /// <summary>
+        /// Parses the language links in a MySQL dump file
+        /// </summary>
+        /// <param name="sqlDumpFilePath">The path of the dump file</param>
+        /// <returns>The collection of language links in the dump file</returns>
         public List<LanguageLink> ParseLanguageLinks(string sqlDumpFilePath)
         {
             var languageLinks = new List<LanguageLink>();
-            //var lastProgressLog = 0L;
 
             // Split on ')' characters 
             const char splitCharacter = ')';
@@ -42,23 +48,6 @@ namespace WikitionaryDumpParser.Src
                                 if (languageLink != null)
                                 {
                                     languageLinks.Add(languageLink);
-                                    /*if (languageLinks.Count == 1000)
-                                    {
-                                        // Write lines (by batch)
-                                        var lines = languageLinks
-                                            .Select(tup => string.Format("{0}|{1}|{2}", tup.Item1, tup.Item2, tup.Item3))
-                                            .ToList();
-                                        File.AppendAllLines(outputFilePath, lines);
-                                        languageLinks.Clear();
-
-                                        // Show progress in console
-                                        var progress = (fStream.Position * 100) / fStream.Length;
-                                        if (lastProgressLog < progress)
-                                        {
-                                            Console.WriteLine("{0}%", progress);
-                                            lastProgressLog = progress;
-                                        }
-                                    }*/
                                 }
 
                                 // Clear the string builder
@@ -69,15 +58,6 @@ namespace WikitionaryDumpParser.Src
                 }
             }
 
-            // Write the remaining page ids in "cache"
-            /*if (languageLinks.Any())
-            {
-                var lines = languageLinks
-                        .Select(tup => string.Format("{0}|{1}", tup.Item1, tup.Item2))
-                        .ToList();
-                File.AppendAllLines(outputFilePath, lines);
-                languageLinks.Clear();
-            }*/
             return languageLinks;
         }
 
@@ -85,10 +65,12 @@ namespace WikitionaryDumpParser.Src
         private const string LanguageLinkPattern = @"\((\d+)\,\'(fr)\'\,\'(.+)\'\)";
         private static readonly Regex LanguageLinkRegex = new Regex(LanguageLinkPattern, RegexOptions.Compiled);
 
-
+        /// <summary>
+        /// Extracts a language links from a MySQL dump file line.
+        /// Ex: (34778507,'es','Categoría:Futbolistas del Arlesey Town Football Club')
+        /// </summary>
         private LanguageLink ExtractLanguageLink(string line)
         {
-            //(34778507,'es','Categoría:Futbolistas del Arlesey Town Football Club')
             var match = LanguageLinkRegex.Match(line);
             if (match.Success)
             {

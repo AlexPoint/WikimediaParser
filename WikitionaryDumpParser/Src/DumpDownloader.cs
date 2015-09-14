@@ -10,12 +10,23 @@ using System.Xml;
 
 namespace WikitionaryDumpParser.Src
 {
+    /// <summary>
+    /// A downloader for WikiMedia dump files.
+    /// The dumps are downloaded locally in the AppData folder.
+    /// </summary>
     public class DumpDownloader
     {
         private const string RootUrl = "https://dumps.wikimedia.org";
         private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
 
-
+        /// <summary>
+        /// Downloads a dump file locally in the AppData folder (keep the same filename) if the file
+        /// hasn't been downloaded already (dump file are huge, so we optimize by checking if the file already exists).
+        /// A filename generally contains the language/wikimedia/version/type of file.
+        /// Ex: enwiki-latest-page.sql.gz
+        /// </summary>
+        /// <param name="fileName">The name of the file to download</param>
+        /// <returns>The local path of the downloaded file (null is download failed)</returns>
         public string DownloadFile(string fileName)
         {
             // Full file names contains wikimedia/language/date infos

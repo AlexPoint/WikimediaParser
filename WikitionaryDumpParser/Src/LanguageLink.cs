@@ -11,7 +11,5 @@ namespace WikitionaryDumpParser.Src
         public int PageId { get; set; }
         public string LanguageCode { get; set; }
         public string Title { get; set; }
-
-
     }
 }

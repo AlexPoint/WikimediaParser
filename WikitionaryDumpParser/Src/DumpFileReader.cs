@@ -5,25 +5,31 @@ using System.IO.Compression;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 
 namespace WikitionaryDumpParser.Src
 {
-    public class DumpFileReader
+    public class DumpFileReader: IDisposable
     {
-        private readonly StreamReader reader;
         private const char SplitCharacter = ')';
+
+        // Properties -------------------------------------
+
+        private Stream fileStream;
+        private Stream decompressedStream;
+        private readonly StreamReader reader;
+        
+
+        // Constructors -----------------------------------
 
         public DumpFileReader(string filePath)
         {
-            using (var fStream = File.OpenRead(filePath))
-            {
-                using (var decompressedStream = new GZipStream(fStream, CompressionMode.Decompress))
-                {
-                    reader = new StreamReader(decompressedStream);
-                }
-            }
+            fileStream = File.OpenRead(filePath);
+            decompressedStream = new GZipStream(fileStream, CompressionMode.Decompress);
+            reader = new StreamReader(decompressedStream);
         }
+
+
+        // Methods ----------------------------------------
 
         public PageInfo ReadNext()
         {
@@ -58,12 +64,16 @@ namespace WikitionaryDumpParser.Src
             return null;
         }
 
-
-        // A wikiepdia page inset looks like
-        // (64578,0,'History_of_Iceland','',278,0,0,0.190001439480112,'20150902131138','20150902131138',679102147,47981,'wikitext')
+        
         private const string PageIdPattern = @"\((\d+)\,\d+\,\'([^\']+)\'\,[^\)]+\)";
         private static readonly Regex PageIdRegex = new Regex(PageIdPattern, RegexOptions.Compiled);
 
+        /// <summary>
+        /// Extract page info from a dump file line.
+        /// Ex: (64578,0,'History_of_Iceland','',278,0,0,0.190001439480112,'20150902131138','20150902131138',679102147,47981,'wikitext')
+        /// </summary>
+        /// <param name="line">A dump file "line" (ie, a value inserted in db)</param>
+        /// <returns>The parsed page info if successful, null otherwise</returns>
         private PageInfo ExtractPageInfo(string line)
         {
             var match = PageIdRegex.Match(line);
@@ -71,16 +81,19 @@ namespace WikitionaryDumpParser.Src
             {
                 var id = int.Parse(match.Groups[1].Value);
                 var title = match.Groups[2].Value;
-                var displayedTitle = title.Replace("_", " ").Replace("&", " and ");
-                //Console.WriteLine("#{0} -> {1}", id, page);
-                return new PageInfo()
+                return new PageInfo
                 {
                     Id = id,
-                    Title = displayedTitle
+                    StoredTitle = title
                 };
             }
             
             return null;
+        }
+
+        public void Dispose()
+        {
+            reader.Dispose();
         }
     }
 }
