@@ -32,7 +32,7 @@ namespace WikitionaryDumpParser.Src
             // Full file names contains wikimedia/language/date infos
             // Ex: enwiki-latest-page.sql.gz 
             var parts = fileName.Split(new[] {'-'}, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length == 3)
+            if (parts.Length >= 3)
             {
                 var languageCode = parts.First().Substring(0, 2);
                 var wikimedia = parts.First().Substring(2);

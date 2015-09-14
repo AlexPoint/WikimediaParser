@@ -25,7 +25,7 @@ namespace Test
         static void Main(string[] args)
         {
             var dictionaryBuilder = new DictionaryBuilder();
-            dictionaryBuilder.CreateDictionary("en", "it", Wikimedia.Wikipedia);
+            dictionaryBuilder.CreateDictionary("en", "es", Wikimedia.Wiktionary);
 
             Console.WriteLine("======= END ========");
             Console.ReadKey();

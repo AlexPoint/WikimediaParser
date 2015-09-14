@@ -6,6 +6,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using ICSharpCode.SharpZipLib.BZip2;
 using WikitionaryDumpParser.Src;
 
 namespace WiktionaryDumpParser.Src
@@ -13,52 +14,61 @@ namespace WiktionaryDumpParser.Src
     public class WiktionaryDumpParser
     {
 
-        public List<TranslationEntry> ParseDumpFile(string dumpFilePath, string sourceLanguage, List<string> targetLanguages, string outputFilePath)
+        public TranslatedEntities ExtractTranslatedEntities(string dumpFilePath, string srcLanguage, string tgtLanguage)
         {
-            var entries = new List<TranslationEntry>();
+            var entities = new TranslatedEntities()
+            {
+                SrcLanguage = srcLanguage,
+                TgtLanguage = tgtLanguage,
+                Entities = new List<TranslatedEntity>()
+            };
 
             using(var inputFileStream = File.OpenRead(dumpFilePath))
             {
-                var reader = XmlReader.Create(inputFileStream);
-
-                while (reader.ReadToFollowing("page"))
+                using (var decompressedStream = new BZip2InputStream(inputFileStream))
                 {
-                    var foundTitle = reader.ReadToDescendant("title");
-                    if (foundTitle)
+                    var reader = XmlReader.Create(decompressedStream);
+
+                    while (reader.ReadToFollowing("page"))
                     {
-                        var title = reader.ReadInnerXml();
-                        var foundRevision = reader.ReadToNextSibling("revision");
-                        if (foundRevision)
+                        var foundTitle = reader.ReadToDescendant("title");
+                        if (foundTitle)
                         {
-                            var foundText = reader.ReadToDescendant("text");
-                            if (foundText)
+                            var title = reader.ReadInnerXml();
+                            var foundRevision = reader.ReadToNextSibling("revision");
+                            if (foundRevision)
                             {
-                                var text = reader.ReadInnerXml();
-                                var translationEntries = ExtractPosTranslations(text, targetLanguages, title);
+                                var foundText = reader.ReadToDescendant("text");
+                                if (foundText)
+                                {
+                                    var text = reader.ReadInnerXml();
+                                    var translationEntries = ExtractTranslatedEntitiesFromPageContent(text, tgtLanguage, title);
 
-                                // Write the translations in the output file as we retrieve them
-                                var lines = translationEntries
-                                    .Select(ent => string.Format("{0}|{1}|{2}|{3}|{4}|{5}", title, sourceLanguage, ent.Language, ent.Name, ent.Pos, ent.Synset))
-                                    .ToList();
-                                File.AppendAllLines(outputFilePath, lines);
-
-                                entries.AddRange(translationEntries);
+                                    entities.Entities.AddRange(translationEntries);
+                                }
                             }
                         }
-                    }
-                    else
-                    {
-                        Console.WriteLine("Couldn't find title in node");
-                    }
+                        else
+                        {
+                            Console.WriteLine("Couldn't find title in node");
+                        }
+                    } 
                 }
 	        }
 
-            return entries;
+            return entities;
         }
 
-        private List<TranslationEntry> ExtractPosTranslations(string text, List<string> targetLanguages, string title)
+        /// <summary>
+        /// Extracts the translations for a given target language in a wiktionary word page content
+        /// </summary>
+        /// <param name="text">The text content of the page</param>
+        /// <param name="targetLanguage">The target language (several translation languages are available in a given page)</param>
+        /// <param name="title">The title of the page (ie, the word in the source language)</param>
+        /// <returns>The collection of translated entities</returns>
+        private List<TranslatedEntity> ExtractTranslatedEntitiesFromPageContent(string text, string targetLanguage, string title)
         {
-            if (string.IsNullOrEmpty(text)){ return new List<TranslationEntry>(); }
+            if (string.IsNullOrEmpty(text)) { return new List<TranslatedEntity>(); }
 
             // match translations section
             var sections = new List<TextSection>();
@@ -83,8 +93,8 @@ namespace WiktionaryDumpParser.Src
 
             // match translations
             // {{t+check|fr|bistoquet|m}} / {{t-check|ee|dɔla}} / {{t-simple|fr|mouiller}} / {{t-|fr|gouille|f}}
-            var translationEntries = new List<TranslationEntry>();
-            var translationPattern = "\\{\\{t(r)?(\\+|\\-)?(check|simple)?\\|" + string.Join("|", targetLanguages) +"\\|[^\\}]+\\}\\}";
+            var translationEntries = new List<TranslatedEntity>();
+            var translationPattern = "\\{\\{t(r)?(\\+|\\-)?(check|simple)?\\|" + targetLanguage +"\\|[^\\}]+\\}\\}";
             var translationMatches = Regex.Matches(text, translationPattern);
             for (var i = 0; i < translationMatches.Count; i++)
             {
@@ -109,12 +119,12 @@ namespace WiktionaryDumpParser.Src
                                                           && section.StartIndex < translationSection.StartIndex);
                             if (posSection != null)
                             {
-                                translationEntries.Add(new TranslationEntry()
+                                translationEntries.Add(new TranslatedEntity()
                                 {
-                                    Name = name,
-                                    Language = lang,
-                                    Pos = posSection.Name,
-                                    Synset = synsetSection.Synset
+                                    Definition = synsetSection.Synset,
+                                    SrcName = title,
+                                    TgtName = name,
+                                    Pos = posSection.Name
                                 });
                             }
                         }
