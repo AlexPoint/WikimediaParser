@@ -78,7 +78,7 @@ namespace WikitionaryDumpParser.Src
             Console.WriteLine("Start parsing language links");
             var parser = new DumpParser();
             var languageLinks = parser.ParseLanguageLinks(srcLangLinksFilePath, tgtLanguage)
-                .ToDictionary(ll => ll.PageId, ll => ll);
+                .ToDictionary(ll => ll.Id, ll => ll);
             Console.WriteLine("{0} language links found", languageLinks.Count());
 
             // Associate the pages (with title in src language) with the language links (with title in tgt language)
@@ -95,7 +95,7 @@ namespace WikitionaryDumpParser.Src
                     translatedEntities.Entities.Add(new TranslatedEntity()
                     {
                         SrcName = pageInfo.GetDisplayedTitle(),
-                        TgtName = languageLink.Title
+                        TgtName = languageLink.GetDisplayedTitle()
                     });
                 }
 

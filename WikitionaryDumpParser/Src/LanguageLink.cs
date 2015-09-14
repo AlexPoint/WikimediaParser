@@ -6,10 +6,12 @@ using System.Threading.Tasks;
 
 namespace WikitionaryDumpParser.Src
 {
-    public class LanguageLink
+    public class LanguageLink: PageInfo
     {
-        public int PageId { get; set; }
+
+        // Properties ---------------------------
+
         public string LanguageCode { get; set; }
-        public string Title { get; set; }
+        
     }
 }

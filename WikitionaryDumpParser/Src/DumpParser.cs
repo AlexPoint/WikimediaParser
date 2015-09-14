@@ -79,9 +79,9 @@ namespace WikitionaryDumpParser.Src
                 var title = match.Groups[3].Value;
                 return new LanguageLink
                 {
-                    PageId = pageId,
+                    Id = pageId,
                     LanguageCode = lang,
-                    Title = title
+                    StoredTitle = title
                 };
             }
 
