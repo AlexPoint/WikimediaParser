@@ -131,14 +131,7 @@ namespace WiktionaryDumpParser.Src
                     }
                     else
                     {
-                        if (title.Contains(":"))
-                        {
-                            Console.WriteLine("Cannot extract translations from page '{0}'", title);
-                        }
-                        else
-                        {
-                            Console.WriteLine("Couldn't link {0}-{1} to its info in {2}", lang, name, text);
-                        }
+                        Console.WriteLine("Cannot extract translations from page '{0}'", title);
                     }
                 }
                 else
