@@ -24,48 +24,8 @@ namespace Test
 
         static void Main(string[] args)
         {
-            var outputFile = PathToProject + "Output\\en-fr-dictionary.txt";
-
-            var dumpDownloader = new DumpDownloader();
-
-            // Download files
-            var enPagePropsFilePath = dumpDownloader.DownloadFile("enwiki-latest-page.sql.gz");
-            var enLangLinksFilePath = dumpDownloader.DownloadFile("enwiki-latest-langlinks.sql.gz");
-
-            // Parse language links
-            Console.WriteLine("Start parsing language links");
-            var parser = new MySqlDumpParser();
-            var languageLinks = parser.ParseLanguageLinks(enLangLinksFilePath)
-                .ToDictionary(ll => ll.PageId, ll => ll);
-            Console.WriteLine("{0} language links found", languageLinks.Count());
-
-            // Show results
-            Console.WriteLine("Start associating pages and language links");
-            var counter = 0;
-            var translatedEntities = new List<TranslatedEntity>();
-            var pageInfoReader = new DumpFileReader(enPagePropsFilePath);
-            var pageInfo = pageInfoReader.ReadNext();
-            while (pageInfo != null)
-            {
-                LanguageLink languageLink;
-                if (languageLinks.TryGetValue(pageInfo.Id, out languageLink))
-                {
-                    counter++;
-                    translatedEntities.Add(new TranslatedEntity()
-                    {
-                        //SrcLanguage = "en",
-                        SrcName = pageInfo.GetDisplayedTitle(),
-                        //TgtLanguage = languageLink.LanguageCode,
-                        TgtName = languageLink.Title
-                    });
-                }
-
-                pageInfo = pageInfoReader.ReadNext();
-            }
-            Console.WriteLine("Found {0} translations", counter);
-
-            // Write all translated entities
-            File.AppendAllLines(outputFile, translatedEntities.Select(te => te.ToString()));
+            var dictionaryBuilder = new DictionaryBuilder();
+            dictionaryBuilder.CreateDictionary("en", "it", Wikimedia.Wikipedia);
 
             Console.WriteLine("======= END ========");
             Console.ReadKey();

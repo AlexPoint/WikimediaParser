@@ -12,7 +12,7 @@ namespace WikitionaryDumpParser.Src
     /// <summary>
     /// Parser for wikimedia MySQL dump files
     /// </summary>
-    public class MySqlDumpParser
+    public class DumpParser
     {
 
         /// <summary>
@@ -20,12 +20,15 @@ namespace WikitionaryDumpParser.Src
         /// </summary>
         /// <param name="sqlDumpFilePath">The path of the dump file</param>
         /// <returns>The collection of language links in the dump file</returns>
-        public List<LanguageLink> ParseLanguageLinks(string sqlDumpFilePath)
+        public List<LanguageLink> ParseLanguageLinks(string sqlDumpFilePath, string tgtLanguage)
         {
-            var languageLinks = new List<LanguageLink>();
+            string languageLinkPattern = @"\((\d+)\,\'(" + tgtLanguage + @")\'\,\'(.+)\'\)";
+            Regex languageLinkRegex = new Regex(languageLinkPattern, RegexOptions.Compiled);
 
             // Split on ')' characters 
             const char splitCharacter = ')';
+
+            var languageLinks = new List<LanguageLink>();
 
             // Open the file
             using (var fStream = File.OpenRead(sqlDumpFilePath))
@@ -44,7 +47,7 @@ namespace WikitionaryDumpParser.Src
                             if (nextChar == splitCharacter)
                             {
                                 // Try to extract the page id and name
-                                var languageLink = ExtractLanguageLink(line.ToString());
+                                var languageLink = ExtractLanguageLink(line.ToString(), languageLinkRegex);
                                 if (languageLink != null)
                                 {
                                     languageLinks.Add(languageLink);
@@ -62,16 +65,13 @@ namespace WikitionaryDumpParser.Src
         }
 
 
-        private const string LanguageLinkPattern = @"\((\d+)\,\'(fr)\'\,\'(.+)\'\)";
-        private static readonly Regex LanguageLinkRegex = new Regex(LanguageLinkPattern, RegexOptions.Compiled);
-
         /// <summary>
         /// Extracts a language links from a MySQL dump file line.
         /// Ex: (34778507,'es','Categoría:Futbolistas del Arlesey Town Football Club')
         /// </summary>
-        private LanguageLink ExtractLanguageLink(string line)
+        private LanguageLink ExtractLanguageLink(string line, Regex regex)
         {
-            var match = LanguageLinkRegex.Match(line);
+            var match = regex.Match(line);
             if (match.Success)
             {
                 var pageId = int.Parse(match.Groups[1].Value);
