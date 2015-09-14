@@ -53,7 +53,7 @@ namespace WikitionaryDumpParser.Src
             var localFilePath = PathToDownloadDirectory + fileName;
             if (File.Exists(localFilePath))
             {
-                var md5Checksum = GetMd5CheckSum(relevantVersionPageUrl, dateVersion, fileName);
+                var md5Checksum = GetMd5CheckSum(relevantVersionPageUrl, wikimedia, languageCode, dateVersion, fileName);
                 if (!string.IsNullOrEmpty(md5Checksum) && GetMd5CheckSum(localFilePath) == md5Checksum)
                 {
                     // The file already exists and has the correct checsum -> we don't download it
@@ -71,7 +71,17 @@ namespace WikitionaryDumpParser.Src
             Console.WriteLine("Start download of file {0}", fileName);
             using (var client = new WebClient())
             {
-                client.DownloadFile(fileUrl, localFilePath);
+                var lastProgressLogged = 0;
+                client.DownloadProgressChanged += (sender, args) =>
+                {
+                    if (args.ProgressPercentage%10 == 0 & args.ProgressPercentage > lastProgressLogged)
+                    {
+                        lastProgressLogged = args.ProgressPercentage;
+                        Console.WriteLine("{0}%", args.ProgressPercentage);
+                    }
+                };
+                var task =  client.DownloadFileTaskAsync(fileUrl, localFilePath);
+                task.Wait();
             }
             Console.WriteLine("End of download of file {0}", fileName);
 
@@ -89,10 +99,10 @@ namespace WikitionaryDumpParser.Src
             }
         }
 
-        private string GetMd5CheckSum(string versionPageUrl, string dateExtension, string fileName)
+        private string GetMd5CheckSum(string versionPageUrl, string wikimedia, string languageCode, string dateExtension, string fileName)
         {
             // Check md5 sum
-            var md5Url = string.Format("{0}/enwiktionary-{1}-md5sums.txt", versionPageUrl, dateExtension);
+            var md5Url = string.Format("{0}/{1}{2}-{3}-md5sums.txt", versionPageUrl, languageCode, wikimedia, dateExtension);
             using (var client = new WebClient())
             {
                 var md5Checksums = client.DownloadString(md5Url);
@@ -102,7 +112,8 @@ namespace WikitionaryDumpParser.Src
                     while (line != null)
                     {
                         var parts = line.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
-                        if (parts.Length == 2 && parts.Last() == fileName)
+                        var fileNameParts = fileName.Split('-');
+                        if (parts.Length == 2 && fileNameParts.All(p => p =="latest" || parts.Last().Contains(p)))
                         {
                             var md5CheckSum = parts.First();
                             return md5CheckSum;
