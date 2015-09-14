@@ -26,7 +26,13 @@ namespace Test
 
         static void Main(string[] args)
         {
-            // Parse and retrieve page ids 
+            var dumpDownloader = new DumpDownloader();
+
+            // Download files
+            var enPagePropsFilePath = dumpDownloader.DownloadFile("enwiki-latest-page.sql.gz");
+            var enLangLinksFilePath = dumpDownloader.DownloadFile("enwiki-latest-langlinks.sql");
+
+            /*// Parse and retrieve page ids 
             var pagePropsSqlDumFile = PathToProject + "Data/enwiki-20150901-page.sql";
             var pageIdsFilePath = PathToProject + "Output/pageIds.txt";
             var parser = new WikiMediaMySqlDumpParser();
@@ -38,18 +44,17 @@ namespace Test
                 .Where(line => !string.IsNullOrEmpty(line) && line.Contains("|"))
                 .Select(line => new Tuple<int, string>(int.Parse(line.Split('|').First()), line.Split('|').Last()))
                 .ToList();
-            Console.WriteLine("{0} page ids found", pageIds.Count());*/
+            Console.WriteLine("{0} page ids found", pageIds.Count());#1#
 
             // Parse and retrieve fr language links
             var langLinksSqlDumFile = PathToProject + "Data/enwiki-20150901-langlinks.sql";
             var langLinksFilePath = PathToProject + "Output/langLinks.txt";
-            //parser.ParseLanguageLinks(langLinksSqlDumFile, langLinksFilePath);
+            //parser.ParseLanguageLinks(langLinksSqlDumFile, langLinksFilePath);*/
 
-            var languageLinks = File.ReadLines(langLinksFilePath)
-                .Where(line => !string.IsNullOrEmpty(line))
-                .Select(line => line.Split('|'))
-                .Where(parts => parts.Length == 3)
-                .ToDictionary(parts => int.Parse(parts.First()), parts => new Tuple<string, string>(parts[1], parts[2]));
+            // Parse language links
+            var parser = new WikiMediaMySqlDumpParser();
+            var languageLinks = parser.ParseLanguageLinks(enLangLinksFilePath)
+                .ToDictionary(ll => ll.PageId, ll => ll);
             Console.WriteLine("{0} language links found", languageLinks.Count());
 
             // Show results
@@ -73,28 +78,18 @@ namespace Test
                 }
             }*/
             var counter = 0;
-            using (var pageIdFileStream = File.OpenRead(pageIdsFilePath))
+            var pageInfoReader = new DumpFileReader(enPagePropsFilePath);
+            var pageInfo = pageInfoReader.ReadNext();
+            while (pageInfo != null)
             {
-                using (var pageIdReader = new StreamReader(pageIdFileStream))
+                LanguageLink languageLink;
+                if (languageLinks.TryGetValue(pageInfo.Id, out languageLink))
                 {
-                    while (!pageIdReader.EndOfStream)
-                    {
-                        var line = pageIdReader.ReadLine();
-                        if (line != null)
-                        {
-                            var parts = line.Split('|');
-                            var pageId = int.Parse(parts.First());
-                            var title = parts.Last();
-
-                            Tuple<string, string> translation;
-                            if (languageLinks.TryGetValue(pageId, out translation))
-                            {
-                                //Console.WriteLine("{0} -> {1}", title, translation.Item2);
-                                counter++;
-                            }
-                        }
-                    }
+                    counter++;
+                    Console.WriteLine("{0} -> {1}", pageInfo.Title, languageLink.Title);
                 }
+
+                pageInfo = pageInfoReader.ReadNext();
             }
             
             Console.WriteLine("Found {0} translations", counter);

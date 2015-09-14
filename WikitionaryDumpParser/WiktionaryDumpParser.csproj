@@ -40,6 +40,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Src\DumpDownloader.cs" />
+    <Compile Include="Src\DumpFileReader.cs" />
+    <Compile Include="Src\LanguageLink.cs" />
+    <Compile Include="Src\PageInfo.cs" />
     <Compile Include="Src\SynsetSection.cs" />
     <Compile Include="Src\TextSection.cs" />
     <Compile Include="Src\TranslationEntry.cs" />
