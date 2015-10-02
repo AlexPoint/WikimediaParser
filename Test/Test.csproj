@@ -48,13 +48,13 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WikitionaryDumpParser\WiktionaryDumpParser.csproj">
+    <ProjectReference Include="..\WikitionaryDumpParser\WikimediaDumpParser.csproj">
       <Project>{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}</Project>
-      <Name>WiktionaryDumpParser</Name>
+      <Name>WikimediaDumpParser</Name>
     </ProjectReference>
-    <ProjectReference Include="..\WikitionaryParser\WikitionaryParser.csproj">
+    <ProjectReference Include="..\WikitionaryParser\WikimediaParser.csproj">
       <Project>{1BB9819A-D5B8-4344-AB31-4AA384618BF1}</Project>
-      <Name>WikitionaryParser</Name>
+      <Name>WikimediaParser</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>

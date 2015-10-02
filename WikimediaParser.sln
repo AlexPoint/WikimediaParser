@@ -3,11 +3,11 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 2013
 VisualStudioVersion = 12.0.40629.0
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikitionaryParser", "WikitionaryParser\WikitionaryParser.csproj", "{1BB9819A-D5B8-4344-AB31-4AA384618BF1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikimediaParser", "WikitionaryParser\WikimediaParser.csproj", "{1BB9819A-D5B8-4344-AB31-4AA384618BF1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{AA756458-3ACA-466B-8E61-51811384E3F6}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WiktionaryDumpParser", "WikitionaryDumpParser\WiktionaryDumpParser.csproj", "{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikimediaDumpParser", "WikitionaryDumpParser\WikimediaDumpParser.csproj", "{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,8 +30,5 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(Performance) = preSolution
-		HasPerformanceSessions = true
 	EndGlobalSection
 EndGlobal
