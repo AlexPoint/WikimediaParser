@@ -131,7 +131,12 @@ namespace WiktionaryDumpParser.Src
                     }
                     else
                     {
-                        Console.WriteLine("Cannot extract translations from page '{0}'", title);
+                        // Log only a message when ':' is not in the page title.
+                        // Those pages are not relevant pages: User:DTLHS/water, Wiktionary:Translation requests/archive/2013-01...
+                        if (!title.Contains(":"))
+                        {
+                            Console.WriteLine("Cannot extract translations from page '{0}'", title);
+                        }
                     }
                 }
                 else

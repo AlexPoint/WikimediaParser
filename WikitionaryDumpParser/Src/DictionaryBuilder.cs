@@ -50,6 +50,10 @@ namespace WikitionaryDumpParser.Src
             }
 
             // Write all translated entities
+            if (File.Exists(outputFilePath))
+            {
+                File.Delete(outputFilePath);
+            }
             File.AppendAllLines(outputFilePath, translatedEntities.GetTextFileLines());
 
             Console.WriteLine("Finished creating dictionary {0}-{1}", srcLanguage, tgtLanguage);
