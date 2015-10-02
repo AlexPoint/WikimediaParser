@@ -105,7 +105,7 @@ namespace WiktionaryDumpParser.Src
                 {
                     var lang = parts[1];
                     var name = parts[2];
-
+                    
                     var synsetSection = synsetSections.LastOrDefault(section => section.Index < match.Index);
                     if (synsetSection != null)
                     {
@@ -119,11 +119,21 @@ namespace WiktionaryDumpParser.Src
                                                           && section.StartIndex < translationSection.StartIndex);
                             if (posSection != null)
                             {
+                                // Check for a alt attribute
+                                var otherName = parts
+                                    .Skip(3)
+                                    .Where(p => Regex.IsMatch(p, "alt="))
+                                    .Select(p => p.Substring(4))
+                                    .FirstOrDefault();
+                                if (otherName != null)
+                                {
+                                    Console.WriteLine("{0} -> {1} (instead of '{2}')", title, otherName, name);
+                                }
                                 translationEntries.Add(new TranslatedEntity()
                                 {
                                     Definition = synsetSection.Synset,
                                     SrcName = title,
-                                    TgtName = name,
+                                    TgtName = otherName ?? name,
                                     Pos = posSection.Name
                                 });
                             }
