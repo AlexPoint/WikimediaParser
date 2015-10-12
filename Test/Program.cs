@@ -9,6 +9,8 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Xml;
+using ICSharpCode.SharpZipLib.BZip2;
 using WikitionaryDumpParser.Src;
 using WikitionaryParser.Src.Frequencies;
 using WikitionaryParser.Src.Idioms;
@@ -24,8 +26,40 @@ namespace Test
 
         static void Main(string[] args)
         {
-            var dictionaryBuilder = new DictionaryBuilder();
-            dictionaryBuilder.CreateDictionary("en", "es", Wikimedia.Wiktionary);
+            var dumpDownloader = new DumpDownloader();
+            var pageDumpFileName = string.Format("{0}{1}-latest-page.sql.gz", "en", "wiki");
+            var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
+
+            using (var inputFileStream = File.OpenRead(dumpFilePath))
+            {
+                using (var decompressedStream = new BZip2InputStream(inputFileStream))
+                {
+                    var reader = XmlReader.Create(decompressedStream);
+
+                    while (reader.ReadToFollowing("page"))
+                    {
+                        var foundTitle = reader.ReadToDescendant("title");
+                        if (foundTitle)
+                        {
+                            var title = reader.ReadInnerXml();
+                            var foundRevision = reader.ReadToNextSibling("revision");
+                            if (foundRevision)
+                            {
+                                var foundText = reader.ReadToDescendant("text");
+                                if (foundText)
+                                {
+                                    var text = reader.ReadInnerXml();
+                                    Console.WriteLine(text);
+                                }
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Couldn't find title in node");
+                        }
+                    }
+                }
+            }
 
             Console.WriteLine("======= END ========");
             Console.ReadKey();
