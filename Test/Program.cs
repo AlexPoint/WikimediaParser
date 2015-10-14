@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using ICSharpCode.SharpZipLib.BZip2;
+using Wiki;
 using WikitionaryDumpParser.Src;
 using WikitionaryParser.Src.Frequencies;
 using WikitionaryParser.Src.Idioms;
@@ -27,9 +28,10 @@ namespace Test
         static void Main(string[] args)
         {
             var dumpDownloader = new DumpDownloader();
-            var pageDumpFileName = string.Format("{0}{1}-latest-page.sql.gz", "en", "wiki");
+            var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiktionary");
             var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
 
+            var parser = new CreoleParser();
             using (var inputFileStream = File.OpenRead(dumpFilePath))
             {
                 using (var decompressedStream = new BZip2InputStream(inputFileStream))
@@ -49,7 +51,11 @@ namespace Test
                                 if (foundText)
                                 {
                                     var text = reader.ReadInnerXml();
-                                    Console.WriteLine(text);
+                                    
+                                    var html = parser.ToHTML(text);
+                                    var innerText = Regex.Replace(html, "<.*?>", string.Empty);
+                                    
+                                    Console.WriteLine(innerText);
                                 }
                             }
                         }
