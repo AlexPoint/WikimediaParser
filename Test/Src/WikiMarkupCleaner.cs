@@ -10,11 +10,15 @@ namespace Test.Src
     public class WikiMarkupCleaner
     {
         private static readonly Regex TitleRegex = new Regex(@"\={2,}([^\=]+)\={2,}", RegexOptions.Compiled);
-        private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[([^\|]+\|)?(?=[^\]]+\]\])", RegexOptions.Compiled);
+        /// <summary>
+        /// Either [[multilingual]] -> multilingual
+        /// OR [[entry|Entries]] -> Entries
+        /// </summary>
+        private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[((?=[^\|\]]+\]\])|[^\|\]]+\|(?=[^\|\]]+\]\]))", RegexOptions.Compiled);
         private static readonly Regex EndInterWikiLinkRegex = new Regex(@"\]\]", RegexOptions.Compiled);
         private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{[^\}]+\}\}", RegexOptions.Compiled);
         private static readonly Regex ItalicMarkup = new Regex(@"'{2,}", RegexOptions.Compiled);
-        private static readonly Regex IndentationMarkup = new Regex(@"(?<=\\n)(#|;|:\*|\*)\s", RegexOptions.Compiled);
+        private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Multiline);
 
 
         public static List<string> CleanupFullArticle(string text)

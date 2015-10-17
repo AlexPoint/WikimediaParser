@@ -96,7 +96,7 @@ namespace WikitionaryDumpParser.Src
             // Associate the pages (with title in src language) with the language links (with title in tgt language)
             Console.WriteLine("Start associating pages and language links");
             var counter = 0;
-            var pageInfoReader = new DumpFileReader(srcPagePropsFilePath);
+            var pageInfoReader = new SqlDumpFileReader(srcPagePropsFilePath);
             var pageInfo = pageInfoReader.ReadNext();
             while (pageInfo != null)
             {

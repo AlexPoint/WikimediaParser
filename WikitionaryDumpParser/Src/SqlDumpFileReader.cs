@@ -8,24 +8,26 @@ using System.Text.RegularExpressions;
 
 namespace WikitionaryDumpParser.Src
 {
-    public class DumpFileReader: IDisposable
+    /// <summary>
+    /// Reader for wikimedia SQL dump files.
+    /// Those files are huge INSERT INTO queries.
+    /// </summary>
+    public class SqlDumpFileReader: IDisposable
     {
         private const char SplitCharacter = ')';
 
         // Properties -------------------------------------
 
-        private Stream fileStream;
-        private Stream decompressedStream;
-        private readonly StreamReader reader;
+        private readonly StreamReader _reader;
         
 
         // Constructors -----------------------------------
 
-        public DumpFileReader(string filePath)
+        public SqlDumpFileReader(string filePath)
         {
-            fileStream = File.OpenRead(filePath);
-            decompressedStream = new GZipStream(fileStream, CompressionMode.Decompress);
-            reader = new StreamReader(decompressedStream);
+            Stream fileStream = File.OpenRead(filePath);
+            Stream decompressedStream = new GZipStream(fileStream, CompressionMode.Decompress);
+            _reader = new StreamReader(decompressedStream);
         }
 
 
@@ -34,10 +36,10 @@ namespace WikitionaryDumpParser.Src
         public PageInfo ReadNext()
         {
             var line = new StringBuilder();
-            while (!reader.EndOfStream)
+            while (!_reader.EndOfStream)
             {
                 // Read characters until finding the split character
-                var nextChar = (char) reader.Read();
+                var nextChar = (char) _reader.Read();
                 line.Append(nextChar);
                 if (nextChar == SplitCharacter)
                 {
@@ -93,7 +95,7 @@ namespace WikitionaryDumpParser.Src
 
         public void Dispose()
         {
-            reader.Dispose();
+            _reader.Dispose();
         }
     }
 }

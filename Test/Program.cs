@@ -29,43 +29,16 @@ namespace Test
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiktionary");
             var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
 
-            using (var inputFileStream = File.OpenRead(dumpFilePath))
+            var xmlDumpFileReader = new XmlDumpFileReader(dumpFilePath);
+
+            WikiPage page = xmlDumpFileReader.ReadNext();
+            while (page != null)
             {
-                using (var decompressedStream = new BZip2InputStream(inputFileStream))
-                {
-                    var reader = XmlReader.Create(decompressedStream);
+                var cleanedLines = WikiMarkupCleaner.CleanupFullArticle(page.Text);
 
-                    while (reader.ReadToFollowing("page"))
-                    {
-                        var foundTitle = reader.ReadToDescendant("title");
-                        if (foundTitle)
-                        {
-                            var title = reader.ReadInnerXml();
-                            var foundRevision = reader.ReadToNextSibling("revision");
-                            if (foundRevision)
-                            {
-                                var foundText = reader.ReadToDescendant("text");
-                                if (foundText)
-                                {
-                                    var text = reader.ReadInnerXml();
-                                    
-                                    Console.WriteLine("===");
-                                    var cleanedLines = WikiMarkupCleaner.CleanupFullArticle(text);
-                                    foreach (var line in cleanedLines)
-                                    {
-                                        Console.WriteLine(line);
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            Console.WriteLine("Couldn't find title in node");
-                        }
-                    }
-                }
+                page = xmlDumpFileReader.ReadNext();
             }
-
+            
             Console.WriteLine("======= END ========");
             Console.ReadKey();
         }
