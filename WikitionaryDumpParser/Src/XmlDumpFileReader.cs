@@ -40,7 +40,7 @@ namespace WikitionaryDumpParser.Src
                     var foundRevision = _reader.ReadToNextSibling("revision");
                     if (foundRevision)
                     {
-                        var revision = _reader.ReadInnerXml();
+                        //var revision = _reader.ReadInnerXml();
                         var foundText = _reader.ReadToDescendant("text");
                         if (foundText)
                         {
@@ -49,7 +49,7 @@ namespace WikitionaryDumpParser.Src
                             return new WikiPage()
                             {
                                 Title = title,
-                                Revision = revision,
+                                //Revision = revision,
                                 Text = text
                             };
                         }

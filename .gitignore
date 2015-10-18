@@ -184,3 +184,4 @@ FakesAssemblies/
 
 # App-specific folders
 Output/
+Test/Data/frequency-results.txt

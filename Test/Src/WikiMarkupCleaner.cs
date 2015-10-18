@@ -63,8 +63,8 @@ namespace Test.Src
                     if (title.Contains("See also"))
                     {
                         var removedText = text.Substring(match.Index);
-                        Console.WriteLine("Removed section:");
-                        Console.WriteLine(removedText);
+                        //Console.WriteLine("Removed section:");
+                        //Console.WriteLine(removedText);
                         return text.Substring(0, match.Index);
                     }
                 }

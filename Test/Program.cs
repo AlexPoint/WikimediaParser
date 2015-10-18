@@ -11,6 +11,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using ICSharpCode.SharpZipLib.BZip2;
+using OpenNLP.Tools.Tokenize;
 using Test.Src;
 using WikitionaryDumpParser.Src;
 using WikitionaryParser.Src.Idioms;
@@ -25,19 +26,35 @@ namespace Test
 
         static void Main(string[] args)
         {
+            var nbOfPagesToParse = 1000;
+
             var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiktionary");
             var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
 
+            //var sentenceDetector = new OpenNLP.Tools.SentenceDetect.EnglishMaximumEntropySentenceDetector("");
+            var tokenizer = new EnglishRuleBasedTokenizer();
+            
+            Console.WriteLine("Parsing wikitext");
             var xmlDumpFileReader = new XmlDumpFileReader(dumpFilePath);
-
             WikiPage page = xmlDumpFileReader.ReadNext();
-            while (page != null)
+            var pageCounter = 0;
+            while (page != null && pageCounter < nbOfPagesToParse)
             {
-                var cleanedLines = WikiMarkupCleaner.CleanupFullArticle(page.Text);
+                var cleanedTokens = WikiMarkupCleaner.CleanupFullArticle(page.Text)
+                    .SelectMany(line => tokenizer.Tokenize(line))
+                    .Where(token => !string.IsNullOrEmpty(token))
+                    .Select(token => token.Trim());
+                FrequencyResults.Instance.AddOccurrences(cleanedTokens, page.Title);
 
+                pageCounter++;
                 page = xmlDumpFileReader.ReadNext();
             }
+
+            // Write frequency results
+            Console.WriteLine("Writing frequencies");
+            var pathToFrequencyFile = PathToProject + "Data/frequency-results.txt";
+            FrequencyResults.Instance.WriteInFile(pathToFrequencyFile);
             
             Console.WriteLine("======= END ========");
             Console.ReadKey();
