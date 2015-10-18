@@ -185,3 +185,4 @@ FakesAssemblies/
 # App-specific folders
 Output/
 Test/Data/frequency-results.txt
+Test/Data/excluded-frequency-results.tx

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using OpenNLP.Tools.Ling;
 
@@ -10,9 +11,9 @@ namespace Test.Src
 {
     public class FrequencyResults
     {
-
-        private Dictionary<string, WordAndFrequency> WordFrequencies = new Dictionary<string, WordAndFrequency>();
-
+        private readonly Dictionary<string, WordAndFrequency> WordFrequencies = new Dictionary<string, WordAndFrequency>();
+        private readonly Dictionary<string, WordAndFrequency> ExcludedWordFrequencies = new Dictionary<string, WordAndFrequency>();
+        private readonly Regex HasEnglishLetterRegex = new Regex(@"[a-zA-Z]+", RegexOptions.Compiled);
 
         private static FrequencyResults _instance;
         public static FrequencyResults Instance
@@ -42,8 +43,12 @@ namespace Test.Src
 
         public void AddOccurence(string word, string pageTitle)
         {
+            var relevantDictionary = HasEnglishLetterRegex.IsMatch(word)
+                ? WordFrequencies
+                : ExcludedWordFrequencies;
+
             WordAndFrequency existingWordAndFrequency;
-            var alreadyExist = WordFrequencies.TryGetValue(word, out existingWordAndFrequency);
+            var alreadyExist = relevantDictionary.TryGetValue(word, out existingWordAndFrequency);
             if (alreadyExist)
             {
                 // Just increase the frequency
@@ -51,23 +56,28 @@ namespace Test.Src
             }
             else
             {
-                WordFrequencies.Add(word, new WordAndFrequency()
+                relevantDictionary.Add(word, new WordAndFrequency()
                 {
                     Word = word,
                     Frequency = 1,
-                    FoundInFirstPageTitle = pageTitle
+                    //FoundInFirstPageTitle = pageTitle
                 });
             }
-
-            //return !alreadyExist;
         }
 
-        public void WriteInFile(string filePath)
+        public void WriteFiles(string keptWordsFilePath, string excludedWordsFilePath)
         {
+            // Word we kept in ferquency list
             var lines = WordFrequencies
                 .OrderByDescending(wf => wf.Value.Frequency)
-                .Select(ent => string.Format("{0}|{1}|{2}", ent.Value.Word, ent.Value.Frequency, ent.Value.FoundInFirstPageTitle));
-            File.WriteAllLines(filePath, lines);
+                .Select(ent => string.Format("{0}|{1}", ent.Value.Word, ent.Value.Frequency, ent.Value.FoundInFirstPageTitle));
+            File.WriteAllLines(keptWordsFilePath, lines);
+
+            // Word we excluded from frequency list
+            var lines2 = ExcludedWordFrequencies
+                .OrderByDescending(wf => wf.Value.Frequency)
+                .Select(ent => string.Format("{0}|{1}", ent.Value.Word, ent.Value.Frequency, ent.Value.FoundInFirstPageTitle));
+            File.WriteAllLines(excludedWordsFilePath, lines2);
         }
     }
 }

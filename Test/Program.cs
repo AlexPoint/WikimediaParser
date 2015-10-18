@@ -1,6 +1,7 @@
 ﻿using System;
 using System.CodeDom;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -27,19 +28,21 @@ namespace Test
         static void Main(string[] args)
         {
             var nbOfPagesToParse = 1000;
-
+            
             var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiktionary");
             var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
 
             //var sentenceDetector = new OpenNLP.Tools.SentenceDetect.EnglishMaximumEntropySentenceDetector("");
             var tokenizer = new EnglishRuleBasedTokenizer();
-            
+
+            var stopWatch = new Stopwatch();
             Console.WriteLine("Parsing wikitext");
+            stopWatch.Start();
             var xmlDumpFileReader = new XmlDumpFileReader(dumpFilePath);
             WikiPage page = xmlDumpFileReader.ReadNext();
             var pageCounter = 0;
-            while (page != null && pageCounter < nbOfPagesToParse)
+            while (page != null /*&& pageCounter < nbOfPagesToParse*/)
             {
                 var cleanedTokens = WikiMarkupCleaner.CleanupFullArticle(page.Text)
                     .SelectMany(line => tokenizer.Tokenize(line))
@@ -50,11 +53,14 @@ namespace Test
                 pageCounter++;
                 page = xmlDumpFileReader.ReadNext();
             }
+            stopWatch.Stop();
+            Console.WriteLine("Parsed {0} wiki pages in {1}", pageCounter, stopWatch.Elapsed.ToString("g"));
 
             // Write frequency results
             Console.WriteLine("Writing frequencies");
             var pathToFrequencyFile = PathToProject + "Data/frequency-results.txt";
-            FrequencyResults.Instance.WriteInFile(pathToFrequencyFile);
+            var pathToExcludedFrequencyFile = PathToProject + "Data/excluded-frequency-results.txt";
+            FrequencyResults.Instance.WriteFiles(pathToFrequencyFile, pathToExcludedFrequencyFile);
             
             Console.WriteLine("======= END ========");
             Console.ReadKey();
