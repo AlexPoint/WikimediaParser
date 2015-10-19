@@ -185,4 +185,5 @@ FakesAssemblies/
 # App-specific folders
 Output/
 Test/Data/frequency-results.txt
-Test/Data/excluded-frequency-results.tx
+Test/Data/excluded-frequency-results.txt
+Test/Data/downloaded-wiktionary-frequency-list.txt
