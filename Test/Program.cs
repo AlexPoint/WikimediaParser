@@ -27,7 +27,15 @@ namespace Test
 
         static void Main(string[] args)
         {
-            var nbOfPagesToParse = 10000;
+            /*var test =
+                @"<ref>Anarchist historian [[George Woodcock]] report of [[Mikhail Bakunin]]'s anti-authoritarianism and shows opposition to both state and non-state forms of authority as follows: ""All anarchists deny authority; many of them fight against it."" (p. 9)&nbsp;... Bakunin did not convert the League's central committee to his full program, but he did persuade them to accept a remarkably radical recommendation to the Berne Congress of September 1868, demanding economic equality and implicitly attacking authority in both Church and State.""</ref><ref>{{cite book |last=Brown |first=L. Susan |chapter=Anarchism as a Political Philosophy of Existential Individualism: Implications for Feminism |title=The Politics of Individualism: Liberalism, Liberal Feminism and Anarchism |publisher=Black Rose Books Ltd. Publishing |year= 2002 |page=106}}</ref>";
+            var results = WikiMarkupCleaner.CleanupFullArticle(test);
+            foreach (var result in results)
+            {
+                Console.WriteLine(result);
+            }*/
+
+            var nbOfPagesToParse = 1000;
             
             var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");

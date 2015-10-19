@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 
 namespace Test.Src
 {
@@ -30,10 +31,14 @@ namespace Test.Src
         private static readonly Regex CommentsMarkup = new Regex(@"(&lt;|<)\!--.+--(&gt;|>)", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex WikiUrls = new Regex(@"\[http:[^\)]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
 
+        // [[File:Bakunin.png|thumb|upright|Collectivist anarchist [[Mikhail Bakunin]] opposed the [[Marxist]] aim of [[dictatorship of the proletariat]] in favour of universal rebellion, and allied himself with the federalists in the First International before his expulsion by the Marxists.<ref name=bbc/>]]
 
 
         public static List<string> CleanupFullArticle(string text)
         {
+            // HtmlDecode text received
+            text = HttpUtility.HtmlDecode(text);
+
             // First cleanup sections
             text = CleanupArticleSections(text);
 
