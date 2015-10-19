@@ -30,7 +30,7 @@ namespace Test
             var nbOfPagesToParse = 1000;
             
             var dumpDownloader = new DumpDownloader();
-            var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiktionary");
+            var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");
             var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
 
             //var sentenceDetector = new OpenNLP.Tools.SentenceDetect.EnglishMaximumEntropySentenceDetector("");
@@ -42,7 +42,7 @@ namespace Test
             var xmlDumpFileReader = new XmlDumpFileReader(dumpFilePath);
             WikiPage page = xmlDumpFileReader.ReadNext();
             var pageCounter = 0;
-            while (page != null /*&& pageCounter < nbOfPagesToParse*/)
+            while (page != null && pageCounter < nbOfPagesToParse)
             {
                 var cleanedTokens = WikiMarkupCleaner.CleanupFullArticle(page.Text)
                     .SelectMany(line => tokenizer.Tokenize(line))

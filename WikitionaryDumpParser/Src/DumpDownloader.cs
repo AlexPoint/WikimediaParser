@@ -64,8 +64,9 @@ namespace WikitionaryDumpParser.Src
             var localFilePath = PathToDownloadDirectory + fileName;
             if (File.Exists(localFilePath))
             {
-                var md5Checksum = GetMd5CheckSum(relevantVersionPageUrl, wikimedia, languageCode, dateVersion, fileName);
-                if (!string.IsNullOrEmpty(md5Checksum) && GetMd5CheckSum(localFilePath) == md5Checksum)
+                // Check file size (if
+                var remoteFileSize = GetByteSize(relevantVersionPageUrl, fileName);
+                if (GetFileSize(localFilePath) == remoteFileSize)
                 {
                     // The file already exists and has the correct checsum -> we don't download it
                     return localFilePath;
@@ -99,15 +100,40 @@ namespace WikitionaryDumpParser.Src
             return localFilePath;
         }
 
+        private long GetFileSize(string localFilePath)
+        {
+            var info = new FileInfo(localFilePath);
+            return info.Length;
+        }
+
         private string GetMd5CheckSum(string localFilePath)
         {
             using (var md5 = MD5.Create())
             {
                 using (var stream = File.OpenRead(localFilePath))
                 {
-                    return BitConverter.ToString(md5.ComputeHash(stream)).Replace("-", "").ToLower();
+                    var bytes = md5.ComputeHash(stream);
+                    return BitConverter.ToString(bytes).Replace("-", "").ToLower();
                 }
             }
+        }
+
+        private long GetByteSize(string versionPageUrl, string fileName)
+        {
+            var md5Url = string.Format("{0}/{1}", versionPageUrl, fileName);
+            
+            var req = HttpWebRequest.Create(md5Url);
+            req.Method = "HEAD";
+            using (WebResponse resp = req.GetResponse())
+            {
+                long contentLength;
+                if (long.TryParse(resp.Headers.Get("Content-Length"), out contentLength))
+                {
+                    return contentLength;
+                }
+            }
+
+            return -1;
         }
 
         private string GetMd5CheckSum(string versionPageUrl, string wikimedia, string languageCode, string dateExtension, string fileName)

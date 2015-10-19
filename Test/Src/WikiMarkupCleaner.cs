@@ -16,9 +16,17 @@ namespace Test.Src
         /// </summary>
         private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[((?=[^\|\]]+\]\])|[^\|\]]+\|(?=[^\|\]]+\]\]))", RegexOptions.Compiled);
         private static readonly Regex EndInterWikiLinkRegex = new Regex(@"\]\]", RegexOptions.Compiled);
-        private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{[^\}]+\}\}", RegexOptions.Compiled);
+        /// <summary>
+        /// We matches two levels of outbound links:
+        /// {{ lorem ipsum }} and {{ lorem {{ ipsum }} }}
+        /// Useful in pages such as https://en.wikipedia.org/wiki/Apostolic_succession which contain for instance
+        /// references in quote boxes.
+        /// </summary>
+        private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{([^\}\{]+|[^\}\{]+\{\{[^\}\{]+\}\}[^\}\{]+)\}\}", RegexOptions.Compiled);
         private static readonly Regex ItalicMarkup = new Regex(@"'{2,}", RegexOptions.Compiled);
         private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex TagsMarkup = new Regex(@"&lt;\w+&gt;", RegexOptions.Compiled);
+
 
 
         public static List<string> CleanupFullArticle(string text)
@@ -39,12 +47,15 @@ namespace Test.Src
             // Cleanup titles
             text = TitleRegex.Replace(text, "");
 
-            // Cleanup useless markup
+            // Cleanup useless bold, italic and indentation markup
             text = OutboundLinkRegex.Replace(text, "");
             text = ItalicMarkup.Replace(text, "");
             text = IndentationMarkup.Replace(text, "");
 
-            // 
+            // Cleanup tags
+            text = TagsMarkup.Replace(text, " ");
+
+            // Cleanup interwiki links
             text = StartInterWikiLinkRegex.Replace(text, "");
             text = EndInterWikiLinkRegex.Replace(text, "");
 
