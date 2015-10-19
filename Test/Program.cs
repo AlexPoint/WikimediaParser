@@ -27,7 +27,7 @@ namespace Test
 
         static void Main(string[] args)
         {
-            var nbOfPagesToParse = 1000;
+            var nbOfPagesToParse = 10000;
             
             var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");

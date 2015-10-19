@@ -14,7 +14,7 @@ namespace Test.Src
         /// Either [[multilingual]] -> multilingual
         /// OR [[entry|Entries]] -> Entries
         /// </summary>
-        private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[((?=[^\|\]]+\]\])|[^\|\]]+\|(?=[^\|\]]+\]\]))", RegexOptions.Compiled);
+        private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[((?=[^\|\]]+\]\])|[^\|\]]+\|(?=[^\|\]]+\]\]))", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex EndInterWikiLinkRegex = new Regex(@"\]\]", RegexOptions.Compiled);
         /// <summary>
         /// We matches two levels of outbound links:
@@ -22,10 +22,13 @@ namespace Test.Src
         /// Useful in pages such as https://en.wikipedia.org/wiki/Apostolic_succession which contain for instance
         /// references in quote boxes.
         /// </summary>
-        private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{([^\}\{]+|[^\}\{]+\{\{[^\}\{]+\}\}[^\}\{]+)\}\}", RegexOptions.Compiled);
+        private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{([^\}\{]+|[^\}\{]+\{\{[^\}\{]+\}\}[^\}\{]+)\}\}", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex ItalicMarkup = new Regex(@"'{2,}", RegexOptions.Compiled);
         private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Multiline);
-        private static readonly Regex TagsMarkup = new Regex(@"&lt;\w+&gt;", RegexOptions.Compiled);
+        public static readonly Regex RefTagsContent = new Regex(@"<ref([^>]+)?>(?:(?!<\/ref>).)*<\/ref>", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex TagsMarkup = new Regex(@"(&lt;[^&]+&gt;|<[^>]+>)", RegexOptions.Compiled);
+        private static readonly Regex CommentsMarkup = new Regex(@"(&lt;|<)\!--.+--(&gt;|>)", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex WikiUrls = new Regex(@"\[http:[^\)]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
 
 
 
@@ -47,14 +50,17 @@ namespace Test.Src
             // Cleanup titles
             text = TitleRegex.Replace(text, "");
 
+            // Cleanup tags & comments
+            text = RefTagsContent.Replace(text, " ");
+            text = TagsMarkup.Replace(text, " ");
+            text = CommentsMarkup.Replace(text, " ");
+            text = WikiUrls.Replace(text, " ");
+
             // Cleanup useless bold, italic and indentation markup
             text = OutboundLinkRegex.Replace(text, "");
             text = ItalicMarkup.Replace(text, "");
             text = IndentationMarkup.Replace(text, "");
-
-            // Cleanup tags
-            text = TagsMarkup.Replace(text, " ");
-
+            
             // Cleanup interwiki links
             text = StartInterWikiLinkRegex.Replace(text, "");
             text = EndInterWikiLinkRegex.Replace(text, "");
@@ -71,7 +77,7 @@ namespace Test.Src
                 if (match.Success && match.Groups.Count > 1)
                 {
                     var title = match.Groups[1].Value;
-                    if (title.Contains("See also"))
+                    if (title.Contains("See also") || title.Contains("References") || title.Contains("Further reading") || title.Contains("External links"))
                     {
                         var removedText = text.Substring(match.Index);
                         //Console.WriteLine("Removed section:");
