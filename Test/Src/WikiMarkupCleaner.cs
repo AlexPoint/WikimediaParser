@@ -14,9 +14,12 @@ namespace Test.Src
         /// <summary>
         /// Either [[multilingual]] -> multilingual
         /// OR [[entry|Entries]] -> Entries
+        /// OR [[File:Bakunin.png|thumb|upright|Collectivist anarchist [[Mikhail Bakunin]] opposed the [[Marxist]] aim of [[dictatorship of the proletariat]] in favour of universal...]]
         /// </summary>
-        private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[((?=[^\|\]]+\]\])|[^\|\]]+\|(?=[^\|\]]+\]\]))", RegexOptions.Compiled | RegexOptions.Multiline);
-        private static readonly Regex EndInterWikiLinkRegex = new Regex(@"\]\]", RegexOptions.Compiled);
+        //private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[((?=[^\|\]]+\]\])|[^\|\]]+\|(?=[^\|\]]+\]\]))", RegexOptions.Compiled | RegexOptions.Multiline);
+        //private static readonly Regex EndInterWikiLinkRegex = new Regex(@"\]\]", RegexOptions.Compiled);
+        private static readonly Regex InterWikiLinkRegex = new Regex(@"\[\[[^\]\[]*(?<=(\||\[))([^\[\]\|]+)\]\]", RegexOptions.Compiled | RegexOptions.Multiline);
+        
         /// <summary>
         /// We matches two levels of outbound links:
         /// {{ lorem ipsum }} and {{ lorem {{ ipsum }} }}
@@ -30,10 +33,7 @@ namespace Test.Src
         private static readonly Regex TagsMarkup = new Regex(@"(&lt;[^&]+&gt;|<[^>]+>)", RegexOptions.Compiled);
         private static readonly Regex CommentsMarkup = new Regex(@"(&lt;|<)\!--.+--(&gt;|>)", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex WikiUrls = new Regex(@"\[http:[^\)]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
-
-        // [[File:Bakunin.png|thumb|upright|Collectivist anarchist [[Mikhail Bakunin]] opposed the [[Marxist]] aim of [[dictatorship of the proletariat]] in favour of universal rebellion, and allied himself with the federalists in the First International before his expulsion by the Marxists.<ref name=bbc/>]]
-
-
+        
         public static List<string> CleanupFullArticle(string text)
         {
             // HtmlDecode text received
@@ -65,10 +65,41 @@ namespace Test.Src
             text = OutboundLinkRegex.Replace(text, "");
             text = ItalicMarkup.Replace(text, "");
             text = IndentationMarkup.Replace(text, "");
-            
+
             // Cleanup interwiki links
-            text = StartInterWikiLinkRegex.Replace(text, "");
-            text = EndInterWikiLinkRegex.Replace(text, "");
+            /*text = StartInterWikiLinkRegex.Replace(text, "");
+            text = EndInterWikiLinkRegex.Replace(text, "");*/
+            text = FilterInterWikiLinks(text);
+
+            return text;
+        }
+
+        private static string FilterInterWikiLinks(string text)
+        {
+            var matches = InterWikiLinkRegex.Matches(text);
+            for (var i = matches.Count - 1; i >= 0; i--)
+            {
+                var match = matches[i];
+                if (match.Success && match.Groups.Count > 2)
+                {
+                    var group = match.Groups[2];
+                    text = text.Substring(0, match.Index) + " " + group.Value + " " +
+                           text.Substring(match.Index + match.Length);
+                }
+            }
+
+            // A second time for nested links
+            matches = InterWikiLinkRegex.Matches(text);
+            for (var i = matches.Count - 1; i >= 0; i--)
+            {
+                var match = matches[i];
+                if (match.Success && match.Groups.Count > 2)
+                {
+                    var group = match.Groups[2];
+                    text = text.Substring(0, match.Index) + " " + group.Value + " " +
+                           text.Substring(match.Index + match.Length);
+                }
+            }
 
             return text;
         }
