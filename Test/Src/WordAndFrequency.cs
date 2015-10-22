@@ -10,6 +10,7 @@ namespace Test.Src
     {
         public string Word { get; set; }
         public long Frequency { get; set; }
+        public bool IsFirstLineToken { get; set; }
         public string FoundInFirstPageTitle { get; set; }
 
         public override string ToString()

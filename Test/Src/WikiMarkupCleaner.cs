@@ -36,8 +36,8 @@ namespace Test.Src
         
         public static List<string> CleanupFullArticle(string text)
         {
-            // HtmlDecode text received
-            text = HttpUtility.HtmlDecode(text);
+            // HtmlDecode text received and replace linux new lines
+            text = HttpUtility.HtmlDecode(text).Replace("\n", Environment.NewLine);
 
             // First cleanup sections
             text = CleanupArticleSections(text);
@@ -46,7 +46,9 @@ namespace Test.Src
             text = CleanupMarkup(text);
 
             // Finally split the different lines
-            var cleanedLines = text.Split(new string[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries).ToList();
+            var cleanedLines = text
+                .Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
+                .ToList();
             return cleanedLines;
         }
 

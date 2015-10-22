@@ -55,7 +55,15 @@ namespace Test
                 var cleanedTokens = WikiMarkupCleaner.CleanupFullArticle(page.Text)
                     .SelectMany(line => tokenizer.Tokenize(line))
                     .Where(token => !string.IsNullOrEmpty(token))
-                    .Select(token => token.Trim());
+                    .Select((token, index) => new {
+                        Word = token.Trim(),
+                        IsFirstLineToken = index == 0
+                    })
+                    .GroupBy(a => a)
+                    .Select(grp => new Tuple<WordAndFrequency,long>(new WordAndFrequency(){
+                        Word = grp.Key.Word,
+                        IsFirstLineToken = grp.Key.IsFirstLineToken}, grp.Count()))
+                    .ToList();
                 FrequencyResults.Instance.AddOccurrences(cleanedTokens, page.Title);
 
                 pageCounter++;
