@@ -12,6 +12,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using ICSharpCode.SharpZipLib.BZip2;
+using OpenNLP.Tools.SentenceDetect;
 using OpenNLP.Tools.Tokenize;
 using Test.Src;
 using WikitionaryDumpParser.Src;
@@ -36,6 +37,8 @@ namespace Test
             }*/
 
             var nbOfPagesToParse = 1000;
+
+            var sentenceDetector = new EnglishMaximumEntropySentenceDetector(PathToProject + "Data/EnglishSD.nbin");
             
             var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");
@@ -53,7 +56,8 @@ namespace Test
             while (page != null && pageCounter < nbOfPagesToParse)
             {
                 var cleanedTokens = WikiMarkupCleaner.CleanupFullArticle(page.Text)
-                    .SelectMany(line => tokenizer.Tokenize(line))
+                    .SelectMany(line => sentenceDetector.SentenceDetect(line))
+                    .SelectMany(sentence => tokenizer.Tokenize(sentence))
                     .Where(token => !string.IsNullOrEmpty(token))
                     .Select((token, index) => new {
                         Word = token.Trim(),
