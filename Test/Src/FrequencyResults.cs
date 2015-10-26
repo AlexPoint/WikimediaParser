@@ -41,7 +41,7 @@ namespace Test.Src
             }
         }
 
-        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>(){"align=", "s.", "&nbsp", "it.", "|style=", "File","&ndash", "b.", "d.", "s"});
+        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "align=", "style=", "s.", "&nbsp", "it.", "|style=", "File", "&ndash", "b.", "d.", "s" });
 
         public void AddOccurence(Tuple<WordAndFrequency,long> wordAndFreq, string pageTitle, int index)
         {

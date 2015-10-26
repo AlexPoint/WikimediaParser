@@ -28,13 +28,44 @@ namespace Test
 
         static void Main(string[] args)
         {
-            /*var test =
-                @"<ref>Anarchist historian [[George Woodcock]] report of [[Mikhail Bakunin]]'s anti-authoritarianism and shows opposition to both state and non-state forms of authority as follows: ""All anarchists deny authority; many of them fight against it."" (p. 9)&nbsp;... Bakunin did not convert the League's central committee to his full program, but he did persuade them to accept a remarkably radical recommendation to the Berne Congress of September 1868, demanding economic equality and implicitly attacking authority in both Church and State.""</ref><ref>{{cite book |last=Brown |first=L. Susan |chapter=Anarchism as a Political Philosophy of Existential Individualism: Implications for Feminism |title=The Politics of Individualism: Liberalism, Liberal Feminism and Anarchism |publisher=Black Rose Books Ltd. Publishing |year= 2002 |page=106}}</ref>";
+            var test =
+                @"
+
+
+{| class=""wikitable sortable"" border=""1"" style=""width:100%; margin:auto;""
+
+!width=""15%""| Country
+
+!width=""12%""| Formal Relations Began
+
+!Notes
+
+|--valign=""top""
+
+|{{Flagu|Fiji}}|| style=""text-align:center"" | <!--Date Started-->{{dts|19 March 2010}}
+
+|
+
+|--valign=""top""
+
+|{{Flagu|Marshall Islands}}|| style=""text-align:center"" | <!--Date Started-->{{dts|10 March 2010}}
+
+|
+
+|--valign=""top""
+
+|{{Flagu|Tuvalu}}|| style=""text-align:center"" | <!--Date Started-->{{dts|16 September 2009}}
+
+|
+
+|}
+
+                ";
             var results = WikiMarkupCleaner.CleanupFullArticle(test);
             foreach (var result in results)
             {
                 Console.WriteLine(result);
-            }*/
+            }
 
             var nbOfPagesToParse = 1000;
 
@@ -47,9 +78,8 @@ namespace Test
             //var sentenceDetector = new OpenNLP.Tools.SentenceDetect.EnglishMaximumEntropySentenceDetector("");
             var tokenizer = new EnglishRuleBasedTokenizer();
 
-            var stopWatch = new Stopwatch();
             Console.WriteLine("Parsing wikitext");
-            stopWatch.Start();
+            var stopWatch = Stopwatch.StartNew();
             var xmlDumpFileReader = new XmlDumpFileReader(dumpFilePath);
             WikiPage page = xmlDumpFileReader.ReadNext();
             var pageCounter = 0;

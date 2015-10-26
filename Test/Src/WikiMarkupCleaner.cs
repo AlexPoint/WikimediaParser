@@ -16,9 +16,8 @@ namespace Test.Src
         /// OR [[entry|Entries]] -> Entries
         /// OR [[File:Bakunin.png|thumb|upright|Collectivist anarchist [[Mikhail Bakunin]] opposed the [[Marxist]] aim of [[dictatorship of the proletariat]] in favour of universal...]]
         /// </summary>
-        //private static readonly Regex StartInterWikiLinkRegex = new Regex(@"\[\[((?=[^\|\]]+\]\])|[^\|\]]+\|(?=[^\|\]]+\]\]))", RegexOptions.Compiled | RegexOptions.Multiline);
-        //private static readonly Regex EndInterWikiLinkRegex = new Regex(@"\]\]", RegexOptions.Compiled);
         private static readonly Regex InterWikiLinkRegex = new Regex(@"\[\[[^\]\[]*(?<=(\||\[))([^\[\]\|]+)\]\]", RegexOptions.Compiled | RegexOptions.Multiline);
+        //private static readonly Regex InterWikiLinkRegex = new Regex(@"\[\[[^\]\[]*(?<=(\||\[))([^\[\]\|]+)\]\]", RegexOptions.Compiled | RegexOptions.Multiline);
         
         /// <summary>
         /// We matches two levels of outbound links:
@@ -29,15 +28,17 @@ namespace Test.Src
         private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{([^\}\{]+|[^\}\{]+\{\{[^\}\{]+\}\}[^\}\{]+)\}\}", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex ItalicMarkup = new Regex(@"'{2,}", RegexOptions.Compiled);
         private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Multiline);
-        public static readonly Regex RefTagsContent = new Regex(@"<ref([^>]+)?>(?:(?!<\/ref>).)*<\/ref>", RegexOptions.Compiled | RegexOptions.Multiline);
+        public static readonly Regex RefTagsContent = new Regex(@"<ref([^>\/]+)?>((?<!\/ref)>|[^>])*<\/ref>", RegexOptions.Compiled | RegexOptions.Multiline);
+        //public static readonly Regex RefTagsContent = new Regex(@"<ref([^>]+)?>(?:(?!<\/ref>).)*<\/ref>", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex TagsMarkup = new Regex(@"(&lt;[^&]+&gt;|<[^>]+>)", RegexOptions.Compiled);
         private static readonly Regex CommentsMarkup = new Regex(@"(&lt;|<)\!--.+--(&gt;|>)", RegexOptions.Compiled | RegexOptions.Multiline);
-        private static readonly Regex WikiUrls = new Regex(@"\[http:[^\)]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex WikiUrls = new Regex(@"\[http:[^\]]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex WikiTables = new Regex(@"\{\|([^\}\|]|(?<!\|)\}|(?<!\{)\|)*\|\}", RegexOptions.Compiled | RegexOptions.Multiline);
         
         public static List<string> CleanupFullArticle(string text)
         {
-            // HtmlDecode text received and replace linux new lines
-            text = HttpUtility.HtmlDecode(text).Replace("\n", Environment.NewLine);
+            // HtmlDecode text received and replace linux new lines (decode twice for both XML and HTML escaping)
+            text = HttpUtility.HtmlDecode(HttpUtility.HtmlDecode(text)).Replace("\n", Environment.NewLine);
 
             // First cleanup sections
             text = CleanupArticleSections(text);
@@ -57,20 +58,23 @@ namespace Test.Src
             // Cleanup titles
             text = TitleRegex.Replace(text, "");
 
-            // Cleanup tags & comments
-            text = RefTagsContent.Replace(text, " ");
-            text = TagsMarkup.Replace(text, " ");
-            text = CommentsMarkup.Replace(text, " ");
-            text = WikiUrls.Replace(text, " ");
-
+            // Cleanup tags, comments and tables
+            text = RefTagsContent.Replace(text, "");
+            // twice for nested tables
+            text = WikiTables.Replace(text, "");
+            text = WikiTables.Replace(text, "");
+            //
+            text = TagsMarkup.Replace(text, "");
+            text = CommentsMarkup.Replace(text, "");
+            text = WikiUrls.Replace(text, "");
+            
             // Cleanup useless bold, italic and indentation markup
             text = OutboundLinkRegex.Replace(text, "");
             text = ItalicMarkup.Replace(text, "");
             text = IndentationMarkup.Replace(text, "");
 
-            // Cleanup interwiki links
-            /*text = StartInterWikiLinkRegex.Replace(text, "");
-            text = EndInterWikiLinkRegex.Replace(text, "");*/
+            // Cleanup interwiki links (twice for nested links)
+            text = FilterInterWikiLinks(text);
             text = FilterInterWikiLinks(text);
 
             return text;
@@ -89,20 +93,7 @@ namespace Test.Src
                            text.Substring(match.Index + match.Length);
                 }
             }
-
-            // A second time for nested links
-            matches = InterWikiLinkRegex.Matches(text);
-            for (var i = matches.Count - 1; i >= 0; i--)
-            {
-                var match = matches[i];
-                if (match.Success && match.Groups.Count > 2)
-                {
-                    var group = match.Groups[2];
-                    text = text.Substring(0, match.Index) + " " + group.Value + " " +
-                           text.Substring(match.Index + match.Length);
-                }
-            }
-
+            
             return text;
         }
 
