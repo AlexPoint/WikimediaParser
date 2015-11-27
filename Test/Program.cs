@@ -28,44 +28,7 @@ namespace Test
 
         static void Main(string[] args)
         {
-            var test =
-                @"
-
-
-{| class=""wikitable sortable"" border=""1"" style=""width:100%; margin:auto;""
-
-!width=""15%""| Country
-
-!width=""12%""| Formal Relations Began
-
-!Notes
-
-|--valign=""top""
-
-|{{Flagu|Fiji}}|| style=""text-align:center"" | <!--Date Started-->{{dts|19 March 2010}}
-
-|
-
-|--valign=""top""
-
-|{{Flagu|Marshall Islands}}|| style=""text-align:center"" | <!--Date Started-->{{dts|10 March 2010}}
-
-|
-
-|--valign=""top""
-
-|{{Flagu|Tuvalu}}|| style=""text-align:center"" | <!--Date Started-->{{dts|16 September 2009}}
-
-|
-
-|}
-
-                ";
-            var results = WikiMarkupCleaner.CleanupFullArticle(test);
-            foreach (var result in results)
-            {
-                Console.WriteLine(result);
-            }
+            CompareWikiTextAndCleanText("Abraham_Lincoln");
 
             var nbOfPagesToParse = 1000;
 
@@ -75,7 +38,6 @@ namespace Test
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");
             var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
 
-            //var sentenceDetector = new OpenNLP.Tools.SentenceDetect.EnglishMaximumEntropySentenceDetector("");
             var tokenizer = new EnglishRuleBasedTokenizer();
 
             Console.WriteLine("Parsing wikitext");
@@ -85,22 +47,40 @@ namespace Test
             var pageCounter = 0;
             while (page != null && pageCounter < nbOfPagesToParse)
             {
-                var cleanedTokens = WikiMarkupCleaner.CleanupFullArticle(page.Text)
-                    .SelectMany(line => sentenceDetector.SentenceDetect(line))
-                    .SelectMany(sentence => tokenizer.Tokenize(sentence))
-                    .Where(token => !string.IsNullOrEmpty(token))
-                    .Select((token, index) => new {
-                        Word = token.Trim(),
-                        IsFirstLineToken = index == 0
-                    })
-                    .GroupBy(a => a)
-                    .Select(grp => new Tuple<WordAndFrequency,long>(new WordAndFrequency(){
-                        Word = grp.Key.Word,
-                        IsFirstLineToken = grp.Key.IsFirstLineToken}, grp.Count()))
-                    .ToList();
-                FrequencyResults.Instance.AddOccurrences(cleanedTokens, page.Title);
+                if (!page.Title.Contains(":"))
+                {
+                    var cleanedText = WikiMarkupCleaner.CleanupFullArticle(page.Text);
+                    var cleanedLines = cleanedText
+                        .Split(new string[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
+                        .ToList();
+                    var sentences = cleanedLines
+                        .SelectMany(line => sentenceDetector.SentenceDetect(line))
+                        .ToList();
+                    var wordsAndFrequencies = sentences
+                        .SelectMany(sentence => tokenizer.Tokenize(sentence)
+                            .Where(token => !string.IsNullOrEmpty(token))
+                            .Select((token, index) => new
+                            {
+                                Word = token.Trim(),
+                                IsFirstTokenOfSentence = index == 0
+                            }))
+                        .GroupBy(a => a)
+                        .Select(grp => new Tuple<WordAndFrequency, long>(new WordAndFrequency()
+                        {
+                            Word = grp.Key.Word,
+                            IsFirstLineToken = grp.Key.IsFirstTokenOfSentence
+                        }, grp.Count()))
+                        .ToList();
+                    FrequencyResults.Instance.AddOccurrences(wordsAndFrequencies, page.Title);
 
-                pageCounter++;
+                    pageCounter++;
+                }
+                else
+                {
+                    Console.WriteLine("Skip page '{0}'", page.Title);
+                }
+
+
                 page = xmlDumpFileReader.ReadNext();
             }
             stopWatch.Stop();
@@ -114,6 +94,28 @@ namespace Test
             
             Console.WriteLine("======= END ========");
             Console.ReadKey();
+        }
+
+        private static void CompareWikiTextAndCleanText(string title)
+        {
+            var page = XmlDumpFileReader.GetPage(title);
+
+            var pathToDirectory = PathToProject + "Data/CleanTextCompare/";
+            if (!Directory.Exists(pathToDirectory))
+            {
+                Directory.CreateDirectory(pathToDirectory);
+            }
+
+            // Write the raw content of the page
+            var rawFilePath = pathToDirectory + "raw.txt";
+            File.WriteAllText(rawFilePath, page.Text);
+
+            // Write the cleaned content of the page
+            var cleanedText = WikiMarkupCleaner.CleanupFullArticle(page.Text);
+            var cleanedFilePath = pathToDirectory + "cleaned.txt";
+            File.WriteAllText(cleanedFilePath, cleanedText);
+
+            Console.WriteLine("Files with '{0}' page content (raw & cleaned) has been written");
         }
 
         private static readonly Regex ProperNounRegex = new Regex(@"[A-Z][a-z]+( [A-Z][a-z]+)+", RegexOptions.Compiled);

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using System.Xml;
@@ -40,7 +41,6 @@ namespace WikitionaryDumpParser.Src
                     var foundRevision = _reader.ReadToNextSibling("revision");
                     if (foundRevision)
                     {
-                        //var revision = _reader.ReadInnerXml();
                         var foundText = _reader.ReadToDescendant("text");
                         if (foundText)
                         {
@@ -59,6 +59,28 @@ namespace WikitionaryDumpParser.Src
                 {
                     Console.WriteLine("Couldn't find title in node");
                 }
+            }
+
+            return null;
+        }
+
+        public static WikiPage GetPage(string title)
+        {
+            var url = string.Format("https://en.wikipedia.org/w/api.php?action=query&titles={0}&prop=revisions&rvprop=content&format=xml", title);
+            var client = new WebClient();
+            var xmlResponse = client.DownloadString(url);
+
+            XmlDocument xmlDoc = new XmlDocument();
+            xmlDoc.LoadXml(xmlResponse);
+
+            var revNode = xmlDoc.SelectSingleNode("//rev");
+            if (revNode != null)
+            {
+                return new WikiPage()
+                {
+                    Title = title,
+                    Text = revNode.InnerText
+                };
             }
 
             return null;

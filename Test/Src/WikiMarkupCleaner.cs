@@ -29,13 +29,13 @@ namespace Test.Src
         private static readonly Regex ItalicMarkup = new Regex(@"'{2,}", RegexOptions.Compiled);
         private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Multiline);
         public static readonly Regex RefTagsContent = new Regex(@"<ref([^>\/]+)?>((?<!\/ref)>|[^>])*<\/ref>", RegexOptions.Compiled | RegexOptions.Multiline);
-        //public static readonly Regex RefTagsContent = new Regex(@"<ref([^>]+)?>(?:(?!<\/ref>).)*<\/ref>", RegexOptions.Compiled | RegexOptions.Multiline);
+        public static readonly Regex MathTags = new Regex(@"<math>(?:(?!<\/math>).)*<\/math>", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex TagsMarkup = new Regex(@"(&lt;[^&]+&gt;|<[^>]+>)", RegexOptions.Compiled);
         private static readonly Regex CommentsMarkup = new Regex(@"(&lt;|<)\!--.+--(&gt;|>)", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex WikiUrls = new Regex(@"\[http:[^\]]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
         private static readonly Regex WikiTables = new Regex(@"\{\|([^\}\|]|(?<!\|)\}|(?<!\{)\|)*\|\}", RegexOptions.Compiled | RegexOptions.Multiline);
         
-        public static List<string> CleanupFullArticle(string text)
+        public static string CleanupFullArticle(string text)
         {
             // HtmlDecode text received and replace linux new lines (decode twice for both XML and HTML escaping)
             text = HttpUtility.HtmlDecode(HttpUtility.HtmlDecode(text)).Replace("\n", Environment.NewLine);
@@ -46,11 +46,7 @@ namespace Test.Src
             // Then cleanup markup
             text = CleanupMarkup(text);
 
-            // Finally split the different lines
-            var cleanedLines = text
-                .Split(new string[] { Environment.NewLine }, StringSplitOptions.RemoveEmptyEntries)
-                .ToList();
-            return cleanedLines;
+            return text;
         }
 
         private static string CleanupMarkup(string text)
@@ -64,6 +60,7 @@ namespace Test.Src
             text = WikiTables.Replace(text, "");
             text = WikiTables.Replace(text, "");
             //
+            text = MathTags.Replace(text, "");
             text = TagsMarkup.Replace(text, "");
             text = CommentsMarkup.Replace(text, "");
             text = WikiUrls.Replace(text, "");

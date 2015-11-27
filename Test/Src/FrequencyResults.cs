@@ -41,11 +41,11 @@ namespace Test.Src
             }
         }
 
-        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "align=", "style=", "s.", "&nbsp", "it.", "|style=", "File", "&ndash", "b.", "d.", "s" });
+        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "UTC", "b", "C", "\\frac" });
 
         public void AddOccurence(Tuple<WordAndFrequency,long> wordAndFreq, string pageTitle, int index)
         {
-            if (WatchedWords.Contains(wordAndFreq.Item1.Word))
+            if (WatchedWords.Contains(wordAndFreq.Item1.Word) || wordAndFreq.Item1.Word.EndsWith(".jpg"))
             {
                 WatchedWords.Remove(wordAndFreq.Item1.Word);
                 // Log only the first time
