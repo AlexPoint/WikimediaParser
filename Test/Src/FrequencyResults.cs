@@ -41,7 +41,26 @@ namespace Test.Src
             }
         }
 
-        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "UTC", "b", "C", "\\frac" });
+        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "UTC", "b", "C", "\\frac", "II", "f", "co", "P", "REDIRECT", 
+            "\\mathbf", "J.", "O", "z", "\\right", "—Preceding", "De", "\\left", "mm", "POV", "NPOV", "\\sum_", "e^", "NOT", "birth_place", "WikiProjectBannerShell|1=", 
+            "//en.wikipedia.org/w/index.php", "nm", "\\operatorname", "|image" });
+        /*
+         * Also check: 
+         * - words with first letter capitalize and not beginning of sentence
+         * - words with first letter not capitalized and beginning of sentence
+        */
+
+        /*
+         * start with \ -> 2003 (/500k)
+         * start with non char -> 
+         */
+
+        /*
+         * TODO:
+         * - list all weird words
+         * - refactor parsing with different blocks (plug pre/post processing)
+         * - regex with balance group
+         */
 
         public void AddOccurence(Tuple<WordAndFrequency,long> wordAndFreq, string pageTitle, int index)
         {

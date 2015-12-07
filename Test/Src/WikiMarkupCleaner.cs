@@ -67,6 +67,7 @@ namespace Test.Src
             
             // Cleanup useless bold, italic and indentation markup
             text = OutboundLinkRegex.Replace(text, "");
+            text = OutboundLinkRegex.Replace(text, "");
             text = ItalicMarkup.Replace(text, "");
             text = IndentationMarkup.Replace(text, "");
 
@@ -86,8 +87,7 @@ namespace Test.Src
                 if (match.Success && match.Groups.Count > 2)
                 {
                     var group = match.Groups[2];
-                    text = text.Substring(0, match.Index) + " " + group.Value + " " +
-                           text.Substring(match.Index + match.Length);
+                    text = text.Substring(0, match.Index) + group.Value + text.Substring(match.Index + match.Length);
                 }
             }
             
