@@ -29,9 +29,10 @@ namespace Test
             // Compare an article's raw and cleaned content
             CompareWikiTextAndCleanText("Abraham_Lincoln");
 
+            // ------------------------
+
             const int nbOfSentencesToParse = 100000;
-
-
+            
             // Downloads the dump file with the latest wikipedia pages' content.
             var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");
@@ -72,8 +73,6 @@ namespace Test
                 sentenceCounter++;
             }
             
-            
-
             stopWatch.Stop();
             Console.WriteLine("Parsed {0} sentences in {1}", sentenceCounter, stopWatch.Elapsed.ToString("g"));
 
