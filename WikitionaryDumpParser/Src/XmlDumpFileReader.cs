@@ -67,10 +67,14 @@ namespace WikitionaryDumpParser.Src
         public static WikiPage GetPage(string title)
         {
             var url = string.Format("https://en.wikipedia.org/w/api.php?action=query&titles={0}&prop=revisions&rvprop=content&format=xml", title);
-            var client = new WebClient();
+            var client = new WebClient
+            {
+                // Need to set encoding to UTF-8 for special characters such as Brønsted (article: Acid)
+                Encoding = Encoding.UTF8
+            };
             var xmlResponse = client.DownloadString(url);
 
-            XmlDocument xmlDoc = new XmlDocument();
+            var xmlDoc = new XmlDocument();
             xmlDoc.LoadXml(xmlResponse);
 
             var revNode = xmlDoc.SelectSingleNode("//rev");
