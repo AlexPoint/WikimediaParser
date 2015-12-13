@@ -18,7 +18,7 @@ namespace Test.Src
         /// OR [[entry|Entries]] -> Entries
         /// OR [[File:Bakunin.png|thumb|upright|Collectivist anarchist [[Mikhail Bakunin]] opposed the [[Marxist]] aim of [[dictatorship of the proletariat]] in favour of universal...]]
         /// </summary>
-        private static readonly Regex InterWikiLinkRegex = new Regex(@"\[\[[^\]\[]*(?<=(\||\[))([^\[\]\|]+)\]\]", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex InterWikiLinkRegex = new Regex(@"\[\[[^\]\[]*(?<=(\||\[))([^\[\]\|]+)\]\]", RegexOptions.Compiled | RegexOptions.Singleline);
         
         /// <summary>
         /// We matches two levels of outbound links:
@@ -26,7 +26,8 @@ namespace Test.Src
         /// Useful in pages such as https://en.wikipedia.org/wiki/Apostolic_succession which contain for instance
         /// references in quote boxes.
         /// </summary>
-        private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{([^\}\{]+|[^\}\{]+\{\{[^\}\{]+\}\}[^\}\{]+)\}\}", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{(?:(?!(\}\}|\{\{)).)*\}\}", RegexOptions.Compiled | RegexOptions.Singleline);
+        //private static readonly Regex OutboundLinkRegex = new Regex(@"\{\{([^\}\{]+|[^\}\{]+\{\{[^\}\{]+\}\}[^\}\{]+)\}\}", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// Italic markup is done when using 2 or more '.
@@ -38,19 +39,20 @@ namespace Test.Src
         /// Indentation is done with characters such as #, ;, * etc.
         /// Ex: * [[Private (United States)|Private]]
         /// </summary>
-        private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// Ref tags are used to create automatically footnotes in wikipedia articles.
         /// Ex: <ref>Randall (1947), pp. 65–87.</ref>
         /// </summary>
-        private static readonly Regex RefTagsContent = new Regex(@"<ref([^>\/]+)?>((?<!\/ref)>|[^>])*<\/ref>", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex RefTagsContent = new Regex(@"<ref([^>\/]+)?>((?<!\/ref)>|[^>])*<\/ref>", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// Math tags contains math formula.
         /// Ex: 
         /// </summary>
-        private static readonly Regex MathTags = new Regex(@"<math>(?:(?!<\/math>).)*<\/math>", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex MathTags = new Regex(@"<math>(?:(?!<\/math>).)*<\/math>", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex GaleryTags = new Regex(@"<gallery>(?:(?!<\/gallery>).)*<\/gallery>", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// Wikitext contains various tags other than math and ref tags.
@@ -60,18 +62,24 @@ namespace Test.Src
         /// <summary>
         /// Wikitext contains comments between <!-- and -->
         /// </summary>
-        private static readonly Regex CommentsMarkup = new Regex(@"<\!--.+-->", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex CommentsMarkup = new Regex(@"<\!--.+-->", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// Wikipedia articles contain links to other sites.
         /// Ex: [http://www.illinois.gov/alplm/library/Pages/default.aspx Abraham Lincoln Presidential Library and Museum]
         /// </summary>
-        private static readonly Regex WikiUrls = new Regex(@"\[http:[^\]]+\]", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex WikiUrls = new Regex(@"\[http(s)?:[^\]]+\]", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// 
         /// </summary>
-        private static readonly Regex WikiTables = new Regex(@"\{\|([^\}\|]|(?<!\|)\}|(?<!\{)\|)*\|\}", RegexOptions.Compiled | RegexOptions.Multiline);
+        private static readonly Regex WikiTables = new Regex(@"\{\|([^\}\|]|(?<!\|)\}|(?<!\{)\|)*\|\}", RegexOptions.Compiled | RegexOptions.Singleline);
+
+        /// <summary>
+        /// Several articles just redirections to other articles.
+        /// Ex: AccessibleComputing -> Computer accessibility (content = "REDIRECT Computer accessibility")
+        /// </summary>
+        private static readonly Regex RedirectArticles = new Regex(@"^REDIRECT ", RegexOptions.Compiled);
         
 
         // Constructors -------------------------------
@@ -91,6 +99,7 @@ namespace Test.Src
         /// - decoding the text content received
         /// - removing irrelevant sections
         /// - removing wiki markup
+        /// - return empty string on REDIRECT articles
         /// </summary>
         public string CleanArticleContent(string text)
         {
@@ -103,6 +112,12 @@ namespace Test.Src
 
             // Then cleanup markup
             text = CleanupMarkup(text);
+
+            // Then filter redirect articles
+            if (RedirectArticles.IsMatch(text))
+            {
+                return string.Empty;
+            }
 
             return text;
         }
@@ -123,13 +138,19 @@ namespace Test.Src
             text = WikiTables.Replace(text, "");
             //
             text = MathTags.Replace(text, "");
+            text = GaleryTags.Replace(text, "");
             text = TagsMarkup.Replace(text, "");
             text = CommentsMarkup.Replace(text, "");
             text = WikiUrls.Replace(text, "");
             
             // Cleanup useless bold, italic and indentation markup
+            var length = text.Length;
             text = OutboundLinkRegex.Replace(text, "");
-            text = OutboundLinkRegex.Replace(text, "");
+            while (text.Length < length)
+            {
+                length = text.Length;
+                text = OutboundLinkRegex.Replace(text, "");
+            }
             text = ItalicMarkup.Replace(text, "");
             text = IndentationMarkup.Replace(text, "");
 

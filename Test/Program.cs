@@ -27,11 +27,11 @@ namespace Test
         static void Main(string[] args)
         {
             // Compare an article's raw and cleaned content
-            CompareWikiTextAndCleanText("Abraham_Lincoln");
+            CompareWikiTextAndCleanText("Apple Inc.");
 
             // ------------------------
 
-            const int nbOfSentencesToParse = 100000;
+            const long nbOfSentencesToParse = 10000000000;
             
             // Downloads the dump file with the latest wikipedia pages' content.
             var dumpDownloader = new DumpDownloader();
@@ -52,6 +52,10 @@ namespace Test
             var sentenceAndWikiPage = sentenceReader.ReadNext();
             while (sentenceAndWikiPage != null && sentenceCounter < nbOfSentencesToParse)
             {
+                if (string.IsNullOrEmpty(sentenceAndWikiPage.Item1))
+                {
+                    Console.WriteLine("Empty article (redirect?): " + sentenceAndWikiPage.Item2.Title);
+                }
                 // Tokenize sentences and add the tokens with their frequency in the FrequencyResults object
                 var wordsAndFrequencies = tokenizer.Tokenize(sentenceAndWikiPage.Item1)
                     .Where(token => !string.IsNullOrEmpty(token))
