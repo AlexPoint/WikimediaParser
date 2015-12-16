@@ -53,6 +53,7 @@
     <Compile Include="Src\SqlDumpFileReader.cs" />
     <Compile Include="Src\LanguageLink.cs" />
     <Compile Include="Src\PageInfo.cs" />
+    <Compile Include="Src\StringHelpers.cs" />
     <Compile Include="Src\SynsetSection.cs" />
     <Compile Include="Src\TextSection.cs" />
     <Compile Include="Src\TranslatedEntities.cs" />

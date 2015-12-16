@@ -6,16 +6,14 @@ using System.Threading.Tasks;
 
 namespace Test.Src
 {
-    public class WordAndFrequency
+    public class WordOccurrence
     {
         public string Word { get; set; }
-        public long Frequency { get; set; }
         public bool IsFirstLineToken { get; set; }
-        public string FoundInFirstPageTitle { get; set; }
 
         public override string ToString()
         {
-            return string.Format("{0} ({1})", this.Word, this.Frequency);
+            return string.Format("{0} ({1})", this.Word, this.IsFirstLineToken);
         }
     }
 }

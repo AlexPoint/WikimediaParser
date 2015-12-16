@@ -31,7 +31,7 @@ namespace Test
 
             // ------------------------
 
-            const long nbOfSentencesToParse = 10000000000;
+            const long nbOfSentencesToParse = 1000000;
             
             // Downloads the dump file with the latest wikipedia pages' content.
             var dumpDownloader = new DumpDownloader();
@@ -65,7 +65,7 @@ namespace Test
                         IsFirstTokenOfSentence = index == 0
                     })
                     .GroupBy(a => a)
-                    .Select(grp => new Tuple<WordAndFrequency, long>(new WordAndFrequency()
+                    .Select(grp => new Tuple<WordOccurrence, long>(new WordOccurrence()
                     {
                         Word = grp.Key.Word,
                         IsFirstLineToken = grp.Key.IsFirstTokenOfSentence
@@ -84,7 +84,9 @@ namespace Test
             Console.WriteLine("Writing frequencies");
             var pathToFrequencyFile = PathToProject + "Data/frequency-results.txt";
             var pathToExcludedFrequencyFile = PathToProject + "Data/excluded-frequency-results.txt";
-            FrequencyResults.Instance.WriteFiles(pathToFrequencyFile, pathToExcludedFrequencyFile);
+            var pathToOccurenceNotFoundFile = PathToProject + "Data/not-found-occurrences.txt";
+            var pathToMergedOccurrenceFile = PathToProject + "Data/merged-occurrences.txt";
+            FrequencyResults.Instance.WriteFiles(pathToFrequencyFile, pathToExcludedFrequencyFile, pathToMergedOccurrenceFile, pathToOccurenceNotFoundFile);
             
             Console.WriteLine("======= END ========");
             Console.ReadKey();
