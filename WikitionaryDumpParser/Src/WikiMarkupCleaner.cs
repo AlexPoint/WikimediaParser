@@ -51,8 +51,8 @@ namespace Test.Src
         /// Math tags contains math formula.
         /// Ex: 
         /// </summary>
-        private static readonly Regex MathTags = new Regex(@"<math>(?:(?!<\/math>).)*<\/math>", RegexOptions.Compiled | RegexOptions.Singleline);
-        private static readonly Regex GaleryTags = new Regex(@"<gallery>(?:(?!<\/gallery>).)*<\/gallery>", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex MathTags = new Regex(@"<math[^>\/]*>(?:(?!<\/math>).)*<\/math>", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex GaleryTags = new Regex(@"<gallery[^>\/]*>(?:(?!<\/gallery>).)*<\/gallery>", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// Wikitext contains various tags other than math and ref tags.

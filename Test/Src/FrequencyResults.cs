@@ -95,21 +95,20 @@ namespace Test.Src
             // Word we kept in ferquency list
             var lines = filterWordFrequencies
                 .OrderByDescending(wf => wf.Value)
-                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Word, ent.Key.IsFirstLineToken, ent.Value));
+                .Select(ent => string.Format("{0}|{1}", ent.Key.Word, ent.Value));
             File.WriteAllLines(keptWordsFilePath, lines);
 
             // Word we excluded from frequency list
             var lines2 = ExcludedWordFrequencies
                 .OrderByDescending(wf => wf.Value)
-                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Word, ent.Key.IsFirstLineToken, ent.Value));
+                .Select(ent => string.Format("{0}|{1}", ent.Key.Word, ent.Value));
             File.WriteAllLines(excludedWordsFilePath, lines2);
         }
 
 
         public static Dictionary<WordOccurrence, long> PostProcessWords(Dictionary<WordOccurrence, long> wordOccurences, string mergedWordsFilePath, string notFoundWordsFilePath)
         {
-            var updatedWordOccurrences = new List<Tuple<string, string>>();
-            var occurencesToRemove = new List<WordOccurrence>();
+            var updatedWordOccurrences = new List<Tuple<WordOccurrence, WordOccurrence>>();
             var notFoundOccurrences = new List<string>();
 
             // For each word occurence found at the beginning of a sentence, try to find a similar entry
@@ -133,35 +132,32 @@ namespace Test.Src
                 if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq) && wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
                 {
                     // Increase the counter of the most likely occurrence
-                    if (lcFreq >= ucFreq)
-                    {
-                        wordOccurences[lcOccurrence] += wordOccurrence.Value;
-                        updatedWordOccurrences.Add(new Tuple<string, string>(lcOccurrence.Word, word));
-                    }
-                    else
-                    {
-                        wordOccurences[ucOccurrence] += wordOccurrence.Value;
-                        updatedWordOccurrences.Add(new Tuple<string, string>(ucOccurrence.Word, word));
-                    }
-                    occurencesToRemove.Add(wordOccurrence.Key);
+                    updatedWordOccurrences.Add(lcFreq >= ucFreq
+                        ? new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, wordOccurrence.Key)
+                        : new Tuple<WordOccurrence, WordOccurrence>(ucOccurrence, wordOccurrence.Key));
                 }
                 else if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq))
                 {
-                    wordOccurences[lcOccurrence] += wordOccurrence.Value;
-                    updatedWordOccurrences.Add(new Tuple<string, string>(lcOccurrence.Word, word));
-                    occurencesToRemove.Add(wordOccurrence.Key);
+                    updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, wordOccurrence.Key));
                 }
                 else if (wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
                 {
-                    wordOccurences[ucOccurrence] += wordOccurrence.Value;
-                    updatedWordOccurrences.Add(new Tuple<string, string>(ucOccurrence.Word, word));
-                    occurencesToRemove.Add(wordOccurrence.Key);
+                    updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(ucOccurrence, wordOccurrence.Key));
                 }
                 else
                 {
                     // 
                     notFoundOccurrences.Add(word);
                 }   
+            }
+            
+            // remove the merged occurrences
+            foreach (var updatedOccurrence in updatedWordOccurrences)
+            {
+                // updates the frequency of the main occurrence
+                wordOccurences[updatedOccurrence.Item1] += wordOccurences[updatedOccurrence.Item2];
+                // remove the entry for the second occurrence
+                wordOccurences.Remove(updatedOccurrence.Item2);
             }
 
             // Write merged words in specific file
@@ -170,13 +166,7 @@ namespace Test.Src
             File.WriteAllLines(mergedWordsFilePath, mergedWordsLines);
 
             // Write not found words in specific file
-            File.WriteAllLines(mergedWordsFilePath, notFoundOccurrences);
-
-            // remove the merged occurrences
-            foreach (var occurrenceToRemove in occurencesToRemove)
-            {
-                wordOccurences.Remove(occurrenceToRemove);
-            }
+            File.WriteAllLines(notFoundWordsFilePath, notFoundOccurrences);
 
             return wordOccurences;
         }
