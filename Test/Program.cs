@@ -27,7 +27,7 @@ namespace Test
         static void Main(string[] args)
         {
             // Compare an article's raw and cleaned content
-            CompareWikiTextAndCleanText("Apple Inc.");
+            CompareWikiTextAndCleanText("Aristotle");
 
             // ------------------------
 
@@ -68,7 +68,7 @@ namespace Test
                     .Select(grp => new Tuple<WordOccurrence, long>(new WordOccurrence()
                     {
                         Word = grp.Key.Word,
-                        IsFirstLineToken = grp.Key.IsFirstTokenOfSentence
+                        IsFirstTokenInSentence = grp.Key.IsFirstTokenOfSentence
                     }, grp.Count()))
                     .ToList();
                 FrequencyResults.Instance.AddOccurrences(wordsAndFrequencies, sentenceAndWikiPage.Item2.Title);

@@ -43,9 +43,7 @@ namespace Test.Src
             }
         }
 
-        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "UTC", "b", "C", "\\frac", "II", "f", "co", "P", "REDIRECT", 
-            "\\mathbf", "J.", "O", "z", "\\right", "—Preceding", "De", "\\left", "mm", "POV", "NPOV", "\\sum_", "e^", "NOT", "birth_place", "WikiProjectBannerShell|1=", 
-            "//en.wikipedia.org/w/index.php", "nm", "\\operatorname", "|image" });
+        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "*The", "/female" });
         /*
          * Also check: 
          * - words with first letter capitalize and not beginning of sentence
@@ -112,33 +110,33 @@ namespace Test.Src
             var notFoundOccurrences = new List<string>();
 
             // For each word occurence found at the beginning of a sentence, try to find a similar entry
-            foreach (var wordOccurrence in wordOccurences.Where(ent => ent.Key.IsFirstLineToken))
+            foreach (var wordOccurrence in wordOccurences.Where(ent => ent.Key.IsFirstTokenInSentence))
             {
                 var word = wordOccurrence.Key.Word;
                 var lcOccurrence = new WordOccurrence()
                 {
                     Word = StringHelpers.LowerCaseFirstLetter(word),
-                    IsFirstLineToken = false
+                    IsFirstTokenInSentence = false
                 };
 
                 var ucOccurrence = new WordOccurrence()
                 {
                     Word = StringHelpers.UpperCaseFirstLetter(word),
-                    IsFirstLineToken = false
+                    IsFirstTokenInSentence = false
                 };
 
                 long lcFreq;
                 long ucFreq;
-                if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq) && wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
+                if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq))
                 {
-                    // Increase the counter of the most likely occurrence
-                    updatedWordOccurrences.Add(lcFreq >= ucFreq
-                        ? new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, wordOccurrence.Key)
-                        : new Tuple<WordOccurrence, WordOccurrence>(ucOccurrence, wordOccurrence.Key));
-                }
-                else if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq))
-                {
+                    // We found a lowercased occurrence
                     updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, wordOccurrence.Key));
+
+                    // If there is also an uppercased occurrence with first token = false, merge it with the lower cased one
+                    if (wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
+                    {
+                        updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, ucOccurrence));
+                    }
                 }
                 else if (wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
                 {
@@ -148,7 +146,7 @@ namespace Test.Src
                 {
                     // 
                     notFoundOccurrences.Add(word);
-                }   
+                }
             }
             
             // remove the merged occurrences
@@ -177,14 +175,14 @@ namespace Test.Src
         public bool Equals(WordOccurrence x, WordOccurrence y)
         {
             return (x == null && y == null)
-                   || (x != null && y != null && x.Word == y.Word && x.IsFirstLineToken == y.IsFirstLineToken);
+                   || (x != null && y != null && x.Word == y.Word && x.IsFirstTokenInSentence == y.IsFirstTokenInSentence);
         }
 
         public int GetHashCode(WordOccurrence obj)
         {
             if (obj != null)
             {
-                return obj.Word.GetHashCode() * 17 + obj.IsFirstLineToken.GetHashCode();
+                return obj.Word.GetHashCode() * 17 + obj.IsFirstTokenInSentence.GetHashCode();
             }
             return -1;
         }

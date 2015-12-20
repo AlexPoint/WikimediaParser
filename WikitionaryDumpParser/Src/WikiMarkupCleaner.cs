@@ -39,7 +39,7 @@ namespace Test.Src
         /// Indentation is done with characters such as #, ;, * etc.
         /// Ex: * [[Private (United States)|Private]]
         /// </summary>
-        private static readonly Regex IndentationMarkup = new Regex(@"^(#|;|:\*|\*)", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex IndentationMarkup = new Regex(@"^[#;:\*]+", RegexOptions.Compiled |RegexOptions.Multiline);
 
         /// <summary>
         /// Ref tags are used to create automatically footnotes in wikipedia articles.
@@ -53,6 +53,7 @@ namespace Test.Src
         /// </summary>
         private static readonly Regex MathTags = new Regex(@"<math[^>\/]*>(?:(?!<\/math>).)*<\/math>", RegexOptions.Compiled | RegexOptions.Singleline);
         private static readonly Regex GaleryTags = new Regex(@"<gallery[^>\/]*>(?:(?!<\/gallery>).)*<\/gallery>", RegexOptions.Compiled | RegexOptions.Singleline);
+        private static readonly Regex SourceTags = new Regex(@"<source[^>\/]*>(?:(?!<\/source>).)*<\/source>", RegexOptions.Compiled | RegexOptions.Singleline);
 
         /// <summary>
         /// Wikitext contains various tags other than math and ref tags.
@@ -133,17 +134,6 @@ namespace Test.Src
             // Cleanup tags, comments and tables
             text = RefTagsContent.Replace(text, "");
 
-            // twice for nested tables
-            text = WikiTables.Replace(text, "");
-            text = WikiTables.Replace(text, "");
-            //
-            text = MathTags.Replace(text, "");
-            text = GaleryTags.Replace(text, "");
-            text = TagsMarkup.Replace(text, "");
-            text = CommentsMarkup.Replace(text, "");
-            text = WikiUrls.Replace(text, "");
-            
-            // Cleanup useless bold, italic and indentation markup
             var length = text.Length;
             text = OutboundLinkRegex.Replace(text, "");
             while (text.Length < length)
@@ -151,6 +141,19 @@ namespace Test.Src
                 length = text.Length;
                 text = OutboundLinkRegex.Replace(text, "");
             }
+
+            // twice for nested tables
+            text = WikiTables.Replace(text, "");
+            text = WikiTables.Replace(text, "");
+            //
+            text = MathTags.Replace(text, "");
+            text = GaleryTags.Replace(text, "");
+            text = SourceTags.Replace(text, "");
+            text = TagsMarkup.Replace(text, "");
+            text = CommentsMarkup.Replace(text, "");
+            text = WikiUrls.Replace(text, "");
+            
+            // Cleanup useless bold, italic and indentation markup
             text = ItalicMarkup.Replace(text, "");
             text = IndentationMarkup.Replace(text, "");
 
