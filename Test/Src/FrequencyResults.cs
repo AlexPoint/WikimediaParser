@@ -64,12 +64,12 @@ namespace Test.Src
 
         public void AddOccurence(Tuple<WordOccurrence,long> wordAndFreq, string pageTitle, int index)
         {
-            if (WatchedWords.Contains(wordAndFreq.Item1.Word) || wordAndFreq.Item1.Word.EndsWith(".jpg"))
+            /*if (WatchedWords.Contains(wordAndFreq.Item1.Word) || wordAndFreq.Item1.Word.EndsWith(".jpg"))
             {
                 WatchedWords.Remove(wordAndFreq.Item1.Word);
                 // Log only the first time
                 Console.WriteLine("'{0}' found in '{1}' at index {2}", wordAndFreq, pageTitle, index);
-            }
+            }*/
 
             var relevantDictionary = HasEnglishLetterRegex.IsMatch(wordAndFreq.Item1.Word)
                 ? WordFrequencies
@@ -107,13 +107,48 @@ namespace Test.Src
         public static Dictionary<WordOccurrence, long> PostProcessWords(Dictionary<WordOccurrence, long> wordOccurences, string mergedWordsFilePath, string notFoundWordsFilePath)
         {
             var updatedWordOccurrences = new List<Tuple<WordOccurrence, WordOccurrence>>();
-            var notFoundOccurrences = new List<string>();
+            var notFoundOccurrences = new List<WordOccurrence>();
 
             // For each word occurence found at the beginning of a sentence, try to find a similar entry
             foreach (var wordOccurrence in wordOccurences.Where(ent => ent.Key.IsFirstTokenInSentence))
             {
                 var word = wordOccurrence.Key.Word;
-                var lcOccurrence = new WordOccurrence()
+
+                var nonFirstTokenOccurrence = new WordOccurrence()
+                {
+                    Word = word,
+                    IsFirstTokenInSentence = false
+                };
+                long freq;
+                if (wordOccurences.TryGetValue(nonFirstTokenOccurrence, out freq))
+                {
+                    // We found the exact same occurrence but not at the beginning of a sentence -> merge the two frequencies
+                    updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(nonFirstTokenOccurrence,
+                        wordOccurrence.Key));
+                }
+                else
+                {
+                    var relatedOccurrence = new WordOccurrence()
+                    {
+                        Word = StringHelpers.IsFirstLetterLower(word)
+                                ? StringHelpers.UpperCaseFirstLetter(word)
+                                : StringHelpers.LowerCaseFirstLetter(word),
+                        IsFirstTokenInSentence = false
+                    };
+                    if (wordOccurences.TryGetValue(relatedOccurrence, out freq))
+                    {
+                        // We found the exact same occurrence but not at the beginning of a sentence -> merge the two frequencies
+                        updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(relatedOccurrence,
+                            wordOccurrence.Key));
+                    }
+                    else
+                    {
+                        // 
+                        notFoundOccurrences.Add(wordOccurrence.Key);
+                    }
+                }
+
+                /*var lcOccurrence = new WordOccurrence()
                 {
                     Word = StringHelpers.LowerCaseFirstLetter(word),
                     IsFirstTokenInSentence = false
@@ -127,16 +162,20 @@ namespace Test.Src
 
                 long lcFreq;
                 long ucFreq;
-                if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq))
+                if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq) && wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
                 {
-                    // We found a lowercased occurrence
+                    // We found both a lower and
                     updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, wordOccurrence.Key));
 
-                    // If there is also an uppercased occurrence with first token = false, merge it with the lower cased one
-                    if (wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
+                    // If the word is uppercased, and there is also an uppercased occurrence with first token = false, merge it with the lower cased one
+                    if (char.IsUpper(word[0]) && wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
                     {
                         updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, ucOccurrence));
                     }
+                }
+                else if(wordOccurences.TryGetValue(lcOccurrence, out lcFreq))
+                {
+                    
                 }
                 else if (wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
                 {
@@ -146,7 +185,7 @@ namespace Test.Src
                 {
                     // 
                     notFoundOccurrences.Add(word);
-                }
+                }*/
             }
             
             // remove the merged occurrences
@@ -157,6 +196,11 @@ namespace Test.Src
                 // remove the entry for the second occurrence
                 wordOccurences.Remove(updatedOccurrence.Item2);
             }
+            // remove the not found occurrences
+            foreach (var notFoundOccurrence in notFoundOccurrences)
+            {
+                wordOccurences.Remove(notFoundOccurrence);
+            }
 
             // Write merged words in specific file
             var mergedWordsLines = updatedWordOccurrences
@@ -164,7 +208,35 @@ namespace Test.Src
             File.WriteAllLines(mergedWordsFilePath, mergedWordsLines);
 
             // Write not found words in specific file
-            File.WriteAllLines(notFoundWordsFilePath, notFoundOccurrences);
+            File.WriteAllLines(notFoundWordsFilePath, notFoundOccurrences.Select(occ => occ.Word));
+
+
+            var wordOccurrencesToMerge = new List<Tuple<WordOccurrence, WordOccurrence>>();
+
+            // Now we do'nt have any entity marked as first token in sentence.
+            // Merge all the related entities (same case) but with one occurrence begin far less frequent than the other.
+            // Ex: "American" and "american" -> "american" is present 3 times whereas "American" is present more than 1000 times
+            var groupsToMerge = wordOccurences.GroupBy(wo => StringHelpers.LowerCaseFirstLetter(wo.Key.Word)).Where(grp => grp.Count() > 1).ToList();
+            foreach (var group in groupsToMerge)
+            {
+                var occurrenceWithHighestFreq = group.OrderByDescending(grp => grp.Value).First();
+                foreach (var occurrence in group.OrderByDescending(grp => grp.Value).Skip(1))
+                {
+                    if (occurrence.Value*20 < occurrenceWithHighestFreq.Value)
+                    {
+                        wordOccurrencesToMerge.Add(new Tuple<WordOccurrence, WordOccurrence>(occurrenceWithHighestFreq.Key, occurrence.Key));
+                    }
+                }
+            }
+            // remove the merged occurrences
+            foreach (var updatedOccurrence in wordOccurrencesToMerge)
+            {
+                // updates the frequency of the main occurrence
+                wordOccurences[updatedOccurrence.Item1] += wordOccurences[updatedOccurrence.Item2];
+                // remove the entry for the second occurrence
+                wordOccurences.Remove(updatedOccurrence.Item2);
+            }
+            
 
             return wordOccurences;
         }

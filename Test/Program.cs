@@ -31,7 +31,7 @@ namespace Test
 
             // ------------------------
 
-            const long nbOfSentencesToParse = 1000000;
+            const long nbOfSentencesToParse = 1000000000;
             
             // Downloads the dump file with the latest wikipedia pages' content.
             var dumpDownloader = new DumpDownloader();
