@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Web.UI;
 using OpenNLP.Tools.Ling;
+using OpenNLP.Tools.Util;
 using WikitionaryDumpParser.Src;
 
 namespace Test.Src
@@ -35,6 +36,19 @@ namespace Test.Src
 
         // Methods -----------------------
 
+        public List<WordOccurrence> FlushWordsWithFrequencyLessThan(long frequency)
+        {
+            var wordsToRemove = this.WordFrequencies
+                .Where(ent => ent.Value <= frequency)
+                .Select(ent => ent.Key)
+                .ToList();
+            foreach (var keyValuePair in wordsToRemove)
+            {
+                this.WordFrequencies.Remove(keyValuePair);
+            }
+            return wordsToRemove;
+        }
+
         public void AddOccurrences(List<Tuple<WordOccurrence, long>> words, string pageTitle)
         {
             foreach (var word in words)
@@ -43,7 +57,7 @@ namespace Test.Src
             }
         }
 
-        private static readonly HashSet<string> WatchedWords = new HashSet<string>(new List<string>() { "*The", "/female" });
+        private static readonly System.Collections.Generic.HashSet<string> WatchedWords = new System.Collections.Generic.HashSet<string>(new List<string>() { "*The", "/female" });
         /*
          * Also check: 
          * - words with first letter capitalize and not beginning of sentence
@@ -103,6 +117,17 @@ namespace Test.Src
             File.WriteAllLines(excludedWordsFilePath, lines2);
         }
 
+        public Dictionary<WordOccurrence, long> BuildFrequencyDictionary(string mergedWordsFilePath, string notFoundWordsFilePath)
+        {
+            // 
+            var copy = new Dictionary<WordOccurrence, long>(this.WordFrequencies, new WordAndLocationComparer());
+            var dictionary = PostProcessWords(copy, mergedWordsFilePath, notFoundWordsFilePath);
+            // Empty word frequencies
+            this.WordFrequencies.Clear();
+
+            return dictionary;
+        }
+
 
         public static Dictionary<WordOccurrence, long> PostProcessWords(Dictionary<WordOccurrence, long> wordOccurences, string mergedWordsFilePath, string notFoundWordsFilePath)
         {
@@ -147,45 +172,6 @@ namespace Test.Src
                         notFoundOccurrences.Add(wordOccurrence.Key);
                     }
                 }
-
-                /*var lcOccurrence = new WordOccurrence()
-                {
-                    Word = StringHelpers.LowerCaseFirstLetter(word),
-                    IsFirstTokenInSentence = false
-                };
-
-                var ucOccurrence = new WordOccurrence()
-                {
-                    Word = StringHelpers.UpperCaseFirstLetter(word),
-                    IsFirstTokenInSentence = false
-                };
-
-                long lcFreq;
-                long ucFreq;
-                if (wordOccurences.TryGetValue(lcOccurrence, out lcFreq) && wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
-                {
-                    // We found both a lower and
-                    updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, wordOccurrence.Key));
-
-                    // If the word is uppercased, and there is also an uppercased occurrence with first token = false, merge it with the lower cased one
-                    if (char.IsUpper(word[0]) && wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
-                    {
-                        updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(lcOccurrence, ucOccurrence));
-                    }
-                }
-                else if(wordOccurences.TryGetValue(lcOccurrence, out lcFreq))
-                {
-                    
-                }
-                else if (wordOccurences.TryGetValue(ucOccurrence, out ucFreq))
-                {
-                    updatedWordOccurrences.Add(new Tuple<WordOccurrence, WordOccurrence>(ucOccurrence, wordOccurrence.Key));
-                }
-                else
-                {
-                    // 
-                    notFoundOccurrences.Add(word);
-                }*/
             }
             
             // remove the merged occurrences
@@ -209,7 +195,7 @@ namespace Test.Src
 
             // Write not found words in specific file
             File.WriteAllLines(notFoundWordsFilePath, notFoundOccurrences.Select(occ => occ.Word));
-
+            
 
             var wordOccurrencesToMerge = new List<Tuple<WordOccurrence, WordOccurrence>>();
 
