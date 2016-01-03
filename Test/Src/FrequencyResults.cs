@@ -17,6 +17,7 @@ namespace Test.Src
         private readonly Dictionary<WordOccurrence, long> WordFrequencies = new Dictionary<WordOccurrence, long>(new WordAndLocationComparer());
         private readonly Dictionary<WordOccurrence, long> ExcludedWordFrequencies = new Dictionary<WordOccurrence, long>(new WordAndLocationComparer());
         private readonly Regex HasEnglishLetterRegex = new Regex(@"[a-zA-Z]+", RegexOptions.Compiled);
+        private readonly Regex HasDigitRegex = new Regex(@"\d+", RegexOptions.Compiled);
 
         private static FrequencyResults _instance;
         public static FrequencyResults Instance
@@ -84,6 +85,12 @@ namespace Test.Src
                 // Log only the first time
                 Console.WriteLine("'{0}' found in '{1}' at index {2}", wordAndFreq, pageTitle, index);
             }*/
+
+            // We have several words with digits (ex: 642.4km²) which don't add any valuable information -> filter them
+            if (HasDigitRegex.IsMatch(wordAndFreq.Item1.Word))
+            {
+                return;
+            }
 
             var relevantDictionary = HasEnglishLetterRegex.IsMatch(wordAndFreq.Item1.Word)
                 ? WordFrequencies
@@ -208,7 +215,8 @@ namespace Test.Src
                 var occurrenceWithHighestFreq = group.OrderByDescending(grp => grp.Value).First();
                 foreach (var occurrence in group.OrderByDescending(grp => grp.Value).Skip(1))
                 {
-                    if (occurrence.Value*20 < occurrenceWithHighestFreq.Value)
+                    // If more than 50 occurrences -> this occurrence is likely the best one
+                    if (occurrenceWithHighestFreq.Value > 50)
                     {
                         wordOccurrencesToMerge.Add(new Tuple<WordOccurrence, WordOccurrence>(occurrenceWithHighestFreq.Key, occurrence.Key));
                     }

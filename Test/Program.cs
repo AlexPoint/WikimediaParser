@@ -28,16 +28,17 @@ namespace Test
         static void Main(string[] args)
         {
             // Compare an article's raw and cleaned content
-            CompareWikiTextAndCleanText("Aristotle");
+            //CompareWikiTextAndCleanText("Aristotle");
 
             // ------------------------
 
-            const long flushBatchSize = 1000000;
-            const long nbOfSentencesToParse = 1000000000;
+            // There are 5,046,277 articles on English wikipedia
+            const long flushBatchSize = 100000;
+            const long nbOfSentencesToParse = 1000000;
             var pathToFlushWordsFileFormat = PathToProject + "Data/flush/flushed-words.{0}.txt";
             var pathToOccurenceNotFoundFileFormat = PathToProject + "Data/results/not-found-occurrences.{0}.txt";
             var pathToMergedOccurrenceFileFormat = PathToProject + "Data/results/merged-occurrences.{0}.txt";
-            var wordFrequencies = new Dictionary<WordOccurrence, long>();
+            var wordFrequencies = new Dictionary<string, long>();
             
             // Downloads the dump file with the latest wikipedia pages' content.
             var dumpDownloader = new DumpDownloader();
@@ -60,6 +61,8 @@ namespace Test
             {
                 if (sentenceCounter%flushBatchSize == 0 && sentenceCounter > 0)
                 {
+                    Console.WriteLine("Step #{0}; page '{1}'", sentenceCounter/flushBatchSize, sentenceAndWikiPage.Item2.Title);
+
                     var batchIndex = sentenceCounter/flushBatchSize;
                     // Post process word frequencies
                     var mergeFilePath = string.Format(pathToMergedOccurrenceFileFormat, batchIndex);
@@ -68,22 +71,17 @@ namespace Test
                     // Merge with existing dictionary (keep only words 
                     foreach (var wordFrequency in batchWordFrequencies.Where(ent => ent.Value > 1 || LetterOnlyRegex.IsMatch(ent.Key.Word)))
                     {
-                        if (wordFrequencies.ContainsKey(wordFrequency.Key))
+                        if (wordFrequencies.ContainsKey(wordFrequency.Key.Word))
                         {
                             // Update the frequency
-                            wordFrequencies[wordFrequency.Key] += wordFrequency.Value;
+                            wordFrequencies[wordFrequency.Key.Word] += wordFrequency.Value;
                         }
                         else
                         {
                             // Add the entry
-                            wordFrequencies.Add(wordFrequency.Key, wordFrequency.Value);
+                            wordFrequencies.Add(wordFrequency.Key.Word, wordFrequency.Value);
                         }
                     }
-
-                    // Flush all the words with a frequency equals to 1
-                    /*var removedWords = FrequencyResults.Instance.FlushWordsWithFrequencyLessThan(1);
-                    var pathToFile = string.Format(pathToFlushWordsFileFormat, sentenceCounter/flushBatchSize);
-                    File.WriteAllLines(pathToFile, removedWords.Select(w => w.ToString()));*/
                 }
 
                 if (string.IsNullOrEmpty(sentenceAndWikiPage.Item1))
@@ -117,13 +115,9 @@ namespace Test
             // Write frequency results
             Console.WriteLine("Writing frequencies");
             var pathToFrequencyFile = PathToProject + "Data/frequency-results.txt";
-            /*var pathToExcludedFrequencyFile = PathToProject + "Data/excluded-frequency-results.txt";
-            var pathToOccurenceNotFoundFile = PathToProject + "Data/not-found-occurrences.txt";
-            var pathToMergedOccurrenceFile = PathToProject + "Data/merged-occurrences.txt";
-            FrequencyResults.Instance.WriteFiles(pathToFrequencyFile, pathToExcludedFrequencyFile, pathToMergedOccurrenceFile, pathToOccurenceNotFoundFile);*/
             var lines = wordFrequencies
                 .OrderByDescending(wf => wf.Value)
-                .Select(ent => string.Format("{0}|{1}", ent.Key.Word, ent.Value));
+                .Select(ent => string.Format("{0}|{1}", ent.Key, ent.Value));
             File.WriteAllLines(pathToFrequencyFile, lines);
             
             Console.WriteLine("======= END ========");
