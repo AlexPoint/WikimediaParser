@@ -17,6 +17,8 @@ namespace WikitionaryDumpParser.Src
         private WikiPage currentWikiPage;
         private readonly List<string> stackedSentences = new List<string>();
 
+        public int WikiPageCounter { get; private set; }
+
         public WikimediaSentencesReader(string localDumpFilePath, Predicate<string> pageFilterer, WikiMarkupCleaner wikiMarkupCleaner,
             ISentenceDetector sentenceDetector)
         {
@@ -38,6 +40,7 @@ namespace WikitionaryDumpParser.Src
                 while (currentWikiPage == null || pageFilterer(currentWikiPage.Title))
                 {
                     currentWikiPage = xmlDumpFileReader.ReadNext();
+                    this.WikiPageCounter++;
                 }
 
                 if (currentWikiPage == null)
