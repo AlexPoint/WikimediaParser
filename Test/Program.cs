@@ -33,8 +33,8 @@ namespace Test
             // ------------------------
 
             // There are 5,046,277 articles on English wikipedia
-            const long flushBatchSize = 100000;
-            const long nbOfSentencesToParse = 1000000;
+            const long flushBatchSize = 1000000;
+            const long nbOfSentencesToParse = 10000000;
             var pathToFlushWordsFileFormat = PathToProject + "Data/flush/flushed-words.{0}.txt";
             var pathToOccurenceNotFoundFileFormat = PathToProject + "Data/results/not-found-occurrences.{0}.txt";
             var pathToMergedOccurrenceFileFormat = PathToProject + "Data/results/merged-occurrences.{0}.txt";
@@ -61,7 +61,7 @@ namespace Test
             {
                 if (sentenceCounter%flushBatchSize == 0 && sentenceCounter > 0)
                 {
-                    Console.WriteLine("Step #{0}; page '{1}'", sentenceCounter/flushBatchSize, sentenceAndWikiPage.Item2.Title);
+                    Console.WriteLine("Step #{0}; page '{1}' (#{2})", sentenceCounter/flushBatchSize, sentenceAndWikiPage.Item2.Title, sentenceReader.WikiPageCounter);
 
                     var batchIndex = sentenceCounter/flushBatchSize;
                     // Post process word frequencies
