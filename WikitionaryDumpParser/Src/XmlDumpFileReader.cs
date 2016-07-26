@@ -30,7 +30,7 @@ namespace WikitionaryDumpParser.Src
 
         // Methods ----------------------------------------
 
-        public WikiPage ReadNext()
+        public WikiPage ReadNext(Predicate<string> pageFilterer)
         {
             while (_reader.ReadToFollowing("page"))
             {
@@ -38,21 +38,24 @@ namespace WikitionaryDumpParser.Src
                 if (foundTitle)
                 {
                     var title = _reader.ReadInnerXml();
-                    var foundRevision = _reader.ReadToNextSibling("revision");
-                    if (foundRevision)
+                    if (!pageFilterer(title))
                     {
-                        var foundText = _reader.ReadToDescendant("text");
-                        if (foundText)
+                        var foundRevision = _reader.ReadToNextSibling("revision");
+                        if (foundRevision)
                         {
-                            var text = _reader.ReadInnerXml();
-
-                            return new WikiPage()
+                            var foundText = _reader.ReadToDescendant("text");
+                            if (foundText)
                             {
-                                Title = title,
-                                //Revision = revision,
-                                Text = text
-                            };
-                        }
+                                var text = _reader.ReadInnerXml();
+
+                                return new WikiPage()
+                                {
+                                    Title = title,
+                                    //Revision = revision,
+                                    Text = text
+                                };
+                            }
+                        } 
                     }
                 }
                 else

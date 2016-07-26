@@ -5,8 +5,10 @@ using System.Linq;
 using System.Net;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using HtmlAgilityPack;
 
 namespace WikitionaryDumpParser.Src
 {
@@ -18,6 +20,28 @@ namespace WikitionaryDumpParser.Src
     {
         private const string RootUrl = "https://dumps.wikimedia.org";
         private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
+
+        public List<string> DownloadLatestFiles(string wikimedia, string languageCode)
+        {
+            var latestDirUrl = string.Format("{0}/{1}{2}/latest/", RootUrl, languageCode, wikimedia);
+            var html = new WebClient().DownloadString(latestDirUrl);
+            
+            // list the files to download in this directory
+            var doc = new HtmlDocument();
+            doc.LoadHtml(html);
+
+            var links = doc.DocumentNode.Descendants("a")
+                .Where(n => n.HasAttributes && n.Attributes.Contains("href"))
+                .Select(n => n.Attributes["href"].Value)
+                .Where(link => Regex.IsMatch(link, "latest-pages-meta-current\\d+") && Path.GetExtension(link) == ".bz2")
+                .ToList();
+
+            // Download those files if they're not already on disk
+            var downloadedFiles = links
+                .Select(l => DownloadIfNotPresent(string.Format("{0}/{1}", latestDirUrl, l), Path.GetFileName(l)))
+                .ToList();
+            return downloadedFiles;
+        }
 
         /// <summary>
         /// Downloads a dump file locally in the AppData folder (keep the same filename) if the file
@@ -47,13 +71,8 @@ namespace WikitionaryDumpParser.Src
             }
         }
 
-        private string DownloadFile(string wikimedia, string languageCode, string fileName, string dateVersion)
+        private string DownloadIfNotPresent(string downloadFileUrl, string downloadedFileName)
         {
-            // Retrieve url of page with all versions
-            var versionsPageUrl = GetVersionsPageUrl(wikimedia, languageCode);
-            // Get the url of the relevant page
-            var relevantVersionPageUrl = string.Format("{0}/{1}", versionsPageUrl, dateVersion);
-            
             // Create directory if it doesn't exist
             if (!Directory.Exists(PathToDownloadDirectory))
             {
@@ -61,11 +80,11 @@ namespace WikitionaryDumpParser.Src
             }
 
             // Check if the local copy of the file already exists
-            var localFilePath = PathToDownloadDirectory + fileName;
+            var localFilePath = PathToDownloadDirectory + downloadedFileName;
             if (File.Exists(localFilePath))
             {
                 // Check file size (if
-                var remoteFileSize = GetByteSize(relevantVersionPageUrl, fileName);
+                var remoteFileSize = GetByteSize(downloadFileUrl);
                 if (GetFileSize(localFilePath) == remoteFileSize)
                 {
                     // The file already exists and has the correct checsum -> we don't download it
@@ -79,28 +98,40 @@ namespace WikitionaryDumpParser.Src
             }
 
             // We download the file
-            var fileUrl = string.Format("{0}/{1}", relevantVersionPageUrl, fileName);
-            Console.WriteLine("Start download of file {0}", fileName);
+            //var fileUrl = string.Format("{0}/{1}", relevantVersionPageUrl, fileName);
+            Console.WriteLine("Start download of file at {0}", downloadFileUrl);
             using (var client = new WebClient())
             {
                 var lastProgressLogged = 0;
                 client.DownloadProgressChanged += (sender, args) =>
                 {
-                    if (args.ProgressPercentage%10 == 0 & args.ProgressPercentage > lastProgressLogged)
+                    if (args.ProgressPercentage % 10 == 0 & args.ProgressPercentage > lastProgressLogged)
                     {
                         lastProgressLogged = args.ProgressPercentage;
                         Console.WriteLine("{0}%", args.ProgressPercentage);
                     }
                 };
-                var task =  client.DownloadFileTaskAsync(fileUrl, localFilePath);
+                var task = client.DownloadFileTaskAsync(downloadFileUrl, localFilePath);
                 task.Wait();
             }
-            Console.WriteLine("End of download of file {0}", fileName);
+            Console.WriteLine("End of download of file {0}", downloadedFileName);
 
             return localFilePath;
         }
 
-        private long GetFileSize(string localFilePath)
+        private string DownloadFile(string wikimedia, string languageCode, string fileName, string dateVersion)
+        {
+            // Retrieve url of page with all versions
+            var versionsPageUrl = GetVersionsPageUrl(wikimedia, languageCode);
+            // Get the url of the relevant page
+            var relevantVersionPageUrl = string.Format("{0}/{1}", versionsPageUrl, dateVersion);
+            
+            return DownloadIfNotPresent(relevantVersionPageUrl, fileName);
+
+            //return localFilePath;
+        }
+
+        private static long GetFileSize(string localFilePath)
         {
             var info = new FileInfo(localFilePath);
             return info.Length;
@@ -118,13 +149,13 @@ namespace WikitionaryDumpParser.Src
             }
         }
 
-        private long GetByteSize(string versionPageUrl, string fileName)
+        private static long GetByteSize(string md5Url)
         {
-            var md5Url = string.Format("{0}/{1}", versionPageUrl, fileName);
+            //var md5Url = string.Format("{0}/{1}", versionPageUrl, fileName);
             
-            var req = HttpWebRequest.Create(md5Url);
+            var req = WebRequest.Create(md5Url);
             req.Method = "HEAD";
-            using (WebResponse resp = req.GetResponse())
+            using (var resp = req.GetResponse())
             {
                 long contentLength;
                 if (long.TryParse(resp.Headers.Get("Content-Length"), out contentLength))
@@ -164,7 +195,7 @@ namespace WikitionaryDumpParser.Src
             return "";
         }
 
-        private string GetVersionsPageUrl(string wikimedia, string languageCode)
+        private static string GetVersionsPageUrl(string wikimedia, string languageCode)
         {
             return string.Format("{0}/{1}{2}", RootUrl, languageCode, wikimedia);
         }

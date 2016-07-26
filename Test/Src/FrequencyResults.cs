@@ -111,7 +111,7 @@ namespace Test.Src
         {
             var filterWordFrequencies = PostProcessWords(WordFrequencies, mergedWordsFilePath, notFoundWordsFilePath);
 
-            // Word we kept in ferquency list
+            // Word we kept in frequency list
             var lines = filterWordFrequencies
                 .OrderByDescending(wf => wf.Value)
                 .Select(ent => string.Format("{0}|{1}", ent.Key.Word, ent.Value));
@@ -206,7 +206,7 @@ namespace Test.Src
 
             var wordOccurrencesToMerge = new List<Tuple<WordOccurrence, WordOccurrence>>();
 
-            // Now we do'nt have any entity marked as first token in sentence.
+            // Now we don't have any entity marked as first token in sentence.
             // Merge all the related entities (same case) but with one occurrence begin far less frequent than the other.
             // Ex: "American" and "american" -> "american" is present 3 times whereas "American" is present more than 1000 times
             var groupsToMerge = wordOccurences.GroupBy(wo => StringHelpers.LowerCaseFirstLetter(wo.Key.Word)).Where(grp => grp.Count() > 1).ToList();

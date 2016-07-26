@@ -1,22 +1,16 @@
 ﻿using System;
-using System.CodeDom;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
-using System.Runtime.InteropServices;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
-using ICSharpCode.SharpZipLib.BZip2;
 using OpenNLP.Tools.SentenceDetect;
 using OpenNLP.Tools.Tokenize;
 using Test.Src;
 using WikitionaryDumpParser.Src;
-using WikitionaryParser.Src.Idioms;
 
 namespace Test
 {
@@ -32,9 +26,9 @@ namespace Test
 
             // ------------------------
 
-            // There are 5,046,277 articles on English wikipedia
+            // There are 5,046,277 articles on English wikipedia as of Dec, 2015
             const long flushBatchSize = 1000000;
-            const long nbOfSentencesToParse = 10000000;
+            const long nbOfSentencesToParse = 500000000;
             var pathToFlushWordsFileFormat = PathToProject + "Data/flush/flushed-words.{0}.txt";
             var pathToOccurenceNotFoundFileFormat = PathToProject + "Data/results/not-found-occurrences.{0}.txt";
             var pathToMergedOccurrenceFileFormat = PathToProject + "Data/results/merged-occurrences.{0}.txt";
@@ -43,13 +37,13 @@ namespace Test
             // Downloads the dump file with the latest wikipedia pages' content.
             var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");
-            var dumpFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
+            var dumpFilePaths = dumpDownloader.DownloadLatestFiles("wiki", "en");
 
             // Create the NLP objects necessary for processing the articles' text content (sentence detector and tokenizer)
             var sentenceDetector = new EnglishMaximumEntropySentenceDetector(PathToProject + "Data/EnglishSD.nbin");
-            var tokenizer = new EnglishRuleBasedTokenizer();
+            var tokenizer = new EnglishRuleBasedTokenizer(false);
             var wikimarkupCleaner = new WikiMarkupCleaner();
-            var sentenceReader = new WikimediaSentencesReader(dumpFilePath, title => title.Contains(":"),
+            var sentenceReader = new WikimediaSentencesReader(dumpFilePaths, title => title.Contains(":"),
                 wikimarkupCleaner, sentenceDetector);
 
             // Browse et process all pages
@@ -59,16 +53,18 @@ namespace Test
             var sentenceAndWikiPage = sentenceReader.ReadNext();
             while (sentenceAndWikiPage != null && sentenceCounter < nbOfSentencesToParse)
             {
-                if (sentenceCounter%flushBatchSize == 0 && sentenceCounter > 0)
+                if (sentenceCounter % flushBatchSize == 0 && sentenceCounter > 0)
                 {
                     Console.WriteLine("Step #{0}; page '{1}' (#{2})", sentenceCounter/flushBatchSize, sentenceAndWikiPage.Item2.Title, sentenceReader.WikiPageCounter);
 
                     var batchIndex = sentenceCounter/flushBatchSize;
+                    
                     // Post process word frequencies
                     var mergeFilePath = string.Format(pathToMergedOccurrenceFileFormat, batchIndex);
                     var notFoundFilePath = string.Format(pathToOccurenceNotFoundFileFormat, batchIndex);
                     var batchWordFrequencies = FrequencyResults.Instance.BuildFrequencyDictionary(mergeFilePath, notFoundFilePath);
-                    // Merge with existing dictionary (keep only words 
+
+                    // Merge with existing dictionary (keep only words)
                     foreach (var wordFrequency in batchWordFrequencies.Where(ent => ent.Value > 1 || LetterOnlyRegex.IsMatch(ent.Key.Word)))
                     {
                         if (wordFrequencies.ContainsKey(wordFrequency.Key.Word))
@@ -88,6 +84,7 @@ namespace Test
                 {
                     Console.WriteLine("Empty article (redirect?): " + sentenceAndWikiPage.Item2.Title);
                 }
+
                 // Tokenize sentences and add the tokens with their frequency in the FrequencyResults object
                 var wordsAndFrequencies = tokenizer.Tokenize(sentenceAndWikiPage.Item1)
                     .Where(token => !string.IsNullOrEmpty(token))
@@ -111,6 +108,27 @@ namespace Test
             
             stopWatch.Stop();
             Console.WriteLine("Parsed {0} sentences in {1}", sentenceCounter, stopWatch.Elapsed.ToString("g"));
+
+            /*// Force flushing of the words still in the dictionary
+            // Post process word frequencies
+            var lastMergeFilePath = string.Format(pathToMergedOccurrenceFileFormat, "last");
+            var lastNotFoundFilePath = string.Format(pathToOccurenceNotFoundFileFormat, "last");
+            var batchWordFrequencies = FrequencyResults.Instance.BuildFrequencyDictionary(lastMergeFilePath, lastNotFoundFilePath);
+
+            // Merge with existing dictionary (keep only words)
+            foreach (var wordFrequency in batchWordFrequencies.Where(ent => ent.Value > 1 || LetterOnlyRegex.IsMatch(ent.Key.Word)))
+            {
+                if (wordFrequencies.ContainsKey(wordFrequency.Key.Word))
+                {
+                    // Update the frequency
+                    wordFrequencies[wordFrequency.Key.Word] += wordFrequency.Value;
+                }
+                else
+                {
+                    // Add the entry
+                    wordFrequencies.Add(wordFrequency.Key.Word, wordFrequency.Value);
+                }
+            }*/
 
             // Write frequency results
             Console.WriteLine("Writing frequencies");

@@ -12,70 +12,78 @@ namespace WikitionaryDumpParser.Src
     {
         private readonly Predicate<string> pageFilterer;
         private readonly ISentenceDetector sentenceDetector;
-        private readonly XmlDumpFileReader xmlDumpFileReader;
+        private readonly List<XmlDumpFileReader> xmlDumpFileReaders;
+        private int currentReaderIndex;
         private readonly WikiMarkupCleaner wikiMarkupCleaner;
         private WikiPage currentWikiPage;
         private readonly List<string> stackedSentences = new List<string>();
 
         public int WikiPageCounter { get; private set; }
 
-        public WikimediaSentencesReader(string localDumpFilePath, Predicate<string> pageFilterer, WikiMarkupCleaner wikiMarkupCleaner,
+        public WikimediaSentencesReader(List<string> localDumpFilePaths, Predicate<string> pageFilterer, WikiMarkupCleaner wikiMarkupCleaner,
             ISentenceDetector sentenceDetector)
         {
-            this.xmlDumpFileReader = new XmlDumpFileReader(localDumpFilePath);
+            this.xmlDumpFileReaders = localDumpFilePaths.Select(dp => new XmlDumpFileReader(dp)).ToList();
+            currentReaderIndex = 0;
             this.pageFilterer = pageFilterer;
             this.sentenceDetector = sentenceDetector;
             this.wikiMarkupCleaner = wikiMarkupCleaner;
+        }
+
+        public Tuple<string, WikiPage> ReadNext()
+        {
+            if (currentReaderIndex >= xmlDumpFileReaders.Count)
+            {
+                return null;
+            }
+
+            var currentReader = xmlDumpFileReaders[currentReaderIndex];
+            var next = ReadNextInReader(currentReader);
+            if (next != null)
+            {
+                return next;
+            }
+
+            currentReaderIndex++;
+            return ReadNext();
         }
 
         /// <summary>
         /// Reads the next sentence (and the wiki page where it has been parsed) in the wikimedia dump file
         /// </summary>
         /// <returns></returns>
-        public Tuple<string, WikiPage> ReadNext()
+        public Tuple<string, WikiPage> ReadNextInReader(XmlDumpFileReader xmlDumpFileReader)
         {
-            if (currentWikiPage == null || !this.stackedSentences.Any())
+            if (this.stackedSentences.Any())
             {
-                currentWikiPage = xmlDumpFileReader.ReadNext();
-                while (currentWikiPage == null || pageFilterer(currentWikiPage.Title))
-                {
-                    currentWikiPage = xmlDumpFileReader.ReadNext();
-                    this.WikiPageCounter++;
-                }
+                // Just pop the next sentence
+                var nextSentence = this.stackedSentences[0];
+                this.stackedSentences.RemoveAt(0);
+                return new Tuple<string, WikiPage>(nextSentence, currentWikiPage);
+            }
 
-                if (currentWikiPage == null)
-                {
-                    // We arrived at the end of the dump file
-                    return null;
-                }
-                else
-                {
-                    // Cleanup article content
-                    var cleanedText = this.wikiMarkupCleaner.CleanArticleContent(currentWikiPage.Text);
-
-                    // Split in sentences
-                    var cleanedSentences = cleanedText
-                        .Split(new string[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
-                        .SelectMany(line => sentenceDetector.SentenceDetect(line))
-                        .ToList();
-
-                    if (cleanedSentences.Any())
-                    {
-                        this.stackedSentences.AddRange(cleanedSentences);
-                    }
-                    else
-                    {
-                        // Reads the next page
-                        return this.ReadNext();
-                    }
-                }
-
+            // Get next wikipedia article
+            currentWikiPage = xmlDumpFileReader.ReadNext(pageFilterer);
+            this.WikiPageCounter++;
+            
+            // If we couldn't get the next page, then we reached the end of the current dump file
+            if (currentWikiPage == null)
+            {
+                // We arrived at the end of the dump file
+                return null;
             }
             
-            // Just pop the next sentence
-            var nextSentence = this.stackedSentences[0];
-            this.stackedSentences.RemoveAt(0);
-            return new Tuple<string, WikiPage>(nextSentence, currentWikiPage);
+            // Cleanup article content
+            var cleanedText = this.wikiMarkupCleaner.CleanArticleContent(currentWikiPage.Text);
+
+            // Split in sentences
+            var cleanedSentences = cleanedText
+                .Split(new string[] {Environment.NewLine}, StringSplitOptions.RemoveEmptyEntries)
+                .SelectMany(line => sentenceDetector.SentenceDetect(line))
+                .ToList();
+
+            this.stackedSentences.AddRange(cleanedSentences);
+            return this.ReadNext();
         }
     }
 }
