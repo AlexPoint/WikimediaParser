@@ -28,6 +28,8 @@ namespace Test
 
         static void Main(string[] args)
         {
+            //CompareWikiTextAndCleanText("Algorithms_(journal)");
+
             Console.WriteLine("Which action do you want to do?");
             foreach (var action in Actions)
             {
@@ -69,7 +71,7 @@ namespace Test
             var wordFrequencies = new Dictionary<string, long>();
             
             // Downloads the dump file with the latest wikipedia pages' content.
-            var dumpDownloader = new DumpDownloader();
+            var dumpDownloader = new DumpDownloader(PathToDownloadDirectory);
             var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");
             var dumpFilePaths = dumpDownloader.DownloadLatestFiles("wiki", "en");
 
@@ -178,35 +180,30 @@ namespace Test
 
         private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
 
-        private static string RemoveHTMLTags(string htmlCode)
-        {
-            return Regex.Replace(htmlCode, "<[^>]*>", "");
-        }
 
         private static string SanitizeFileName(string fileName)
         {
             var sb = new StringBuilder();
             foreach (var c in fileName)
             {
-                if (Path.GetInvalidFileNameChars().Contains(c))
-                {
-                    sb.Append('_');
-                }
-                else
-                {
-                    sb.Append(c);
-                }
+                sb.Append(Path.GetInvalidFileNameChars().Contains(c) ? '_' : c);
             }
             return sb.ToString();
         }
 
         private static void ExtractTextFromDumpFiles()
         {
+            Console.WriteLine("Extraction of text from dump files started");
+            var wikiMarkupCleaner = new WikiMarkupCleaner();
+
             var relevantFilePaths = Directory.GetFiles(PathToDownloadDirectory)
                 .Where(f => Regex.IsMatch(f, "enwiki-latest-pages-meta-current\\d") && Path.GetExtension(f) == ".bz2")
                 .ToList();
+            Predicate<string> pageFilterer = s => s.Contains(":");
             foreach (var relevantFilePath in relevantFilePaths)
             {
+                Console.WriteLine("Start extracting text from {0}", relevantFilePath);
+
                 var fileName = Path.GetFileNameWithoutExtension(relevantFilePath);
 
                 // We extract the articles in the directory with the same name
@@ -217,24 +214,42 @@ namespace Test
                 }
 
                 var xmlReader = new XmlDumpFileReader(relevantFilePath);
-                var next = xmlReader.ReadNext(s => false);
+                var next = xmlReader.ReadNext(pageFilterer);
                 while (next != null)
                 {
                     var filePath = directoryPath + "/" + SanitizeFileName(next.Title) + ".txt";
-                    var xhtml = WikiParser.Converter.MediaWikiToXhtml(next.Text);
-                    var text = RemoveHTMLTags(xhtml);
-                    File.WriteAllText(filePath, text);
+                    // Cleanup article content
+                    var cleanedText = wikiMarkupCleaner.CleanArticleContent(next.Text);
 
-                    next = xmlReader.ReadNext(s => false);
+                    if (!string.IsNullOrEmpty(cleanedText))
+                    {
+                        File.WriteAllText(filePath, cleanedText); 
+                    }
+
+                    next = xmlReader.ReadNext(pageFilterer);
                 }
+
+                Console.WriteLine("Done extraction text from {0}", relevantFilePath);
+                Console.WriteLine("{0} articles extracted", Directory.GetFiles(directoryPath).Count());
             }
-            Console.WriteLine("Extraction of text from dump files done.");
+            Console.WriteLine("Extraction of text from dump files done");
             Console.WriteLine("========================================");
         }
         
         private static void DownloadDumpFiles()
         {
-            Console.WriteLine("Downloading of dump files done.");
+            Console.WriteLine("Downloading of dump files started");
+
+            Console.WriteLine("Downloads are stored in directory '{0}'", PathToDownloadDirectory);
+            var dumpDownloader = new DumpDownloader(PathToDownloadDirectory);
+            var dumpFilePaths = dumpDownloader.DownloadLatestFiles("wiki", "en");
+            Console.WriteLine("Downloaded files:");
+            foreach (var dumpFilePath in dumpFilePaths)
+            {
+                Console.WriteLine("- {0}", dumpFilePath);
+            }
+
+            Console.WriteLine("Downloading of dump files done");
             Console.WriteLine("===============================");
             Console.ReadKey();
         }

@@ -19,7 +19,13 @@ namespace WikitionaryDumpParser.Src
     public class DumpDownloader
     {
         private const string RootUrl = "https://dumps.wikimedia.org";
-        private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
+
+        private readonly string _localDownloadDirectory;
+
+        public DumpDownloader(string localDownloadDirectory)
+        {
+            _localDownloadDirectory = localDownloadDirectory;
+        }
 
         public List<string> DownloadLatestFiles(string wikimedia, string languageCode)
         {
@@ -74,13 +80,13 @@ namespace WikitionaryDumpParser.Src
         private string DownloadIfNotPresent(string downloadFileUrl, string downloadedFileName)
         {
             // Create directory if it doesn't exist
-            if (!Directory.Exists(PathToDownloadDirectory))
+            if (!Directory.Exists(_localDownloadDirectory))
             {
-                Directory.CreateDirectory(PathToDownloadDirectory);
+                Directory.CreateDirectory(_localDownloadDirectory);
             }
 
             // Check if the local copy of the file already exists
-            var localFilePath = PathToDownloadDirectory + downloadedFileName;
+            var localFilePath = _localDownloadDirectory + downloadedFileName;
             if (File.Exists(localFilePath))
             {
                 // Check file size (if

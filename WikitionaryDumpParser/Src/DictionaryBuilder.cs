@@ -25,7 +25,7 @@ namespace WikitionaryDumpParser.Src
         /// <param name="tgtLanguage">The ISO-639-1 code for the target language</param>
         /// <param name="wikimedia">The wikipedia resource (wikipedia, witionary...)</param>
         /// <returns>The collection of translated entities</returns>
-        public string CreateDictionary(string srcLanguage, string tgtLanguage, Wikimedia wikimedia)
+        public string CreateDictionary(string srcLanguage, string tgtLanguage, Wikimedia wikimedia, DumpDownloader dumpDownloader)
         {
             Console.WriteLine("Start creating dictionary {0}-{1}", srcLanguage, tgtLanguage);
 
@@ -37,12 +37,12 @@ namespace WikitionaryDumpParser.Src
             if (wikimedia == Wikimedia.Wikipedia)
             {
                 // Creates the dictionary from the language links between the pages
-                translatedEntities = ExtractTranslatedEntitiesFromLanguageLinks(srcLanguage, tgtLanguage, wikimedia);
+                translatedEntities = ExtractTranslatedEntitiesFromLanguageLinks(srcLanguage, tgtLanguage, wikimedia, dumpDownloader);
             }
             else if (wikimedia == Wikimedia.Wiktionary)
             {
                 // Creates the dictionary from the content of wiktionary pages (a translation section is sometimes present on wiktionary)
-                translatedEntities = ExtractTranslatedEntitiesFromWiktionaryContent(srcLanguage, tgtLanguage, wikimedia);
+                translatedEntities = ExtractTranslatedEntitiesFromWiktionaryContent(srcLanguage, tgtLanguage, wikimedia, dumpDownloader);
             }
             else
             {
@@ -70,7 +70,7 @@ namespace WikitionaryDumpParser.Src
         /// <param name="tgtLanguage">The ISO-639-1 code for the target language</param>
         /// <param name="wikimedia">The wikipedia resource (wikipedia, witionary...)</param>
         /// <returns>The collection of translated entities</returns>
-        private TranslatedEntities ExtractTranslatedEntitiesFromLanguageLinks(string srcLanguage, string tgtLanguage, Wikimedia wikimedia)
+        private TranslatedEntities ExtractTranslatedEntitiesFromLanguageLinks(string srcLanguage, string tgtLanguage, Wikimedia wikimedia, DumpDownloader dumpDownloader)
         {
             var translatedEntities = new TranslatedEntities()
             {
@@ -80,7 +80,6 @@ namespace WikitionaryDumpParser.Src
             };
 
             // Download dump files with pages and langlinks of the source language (always take the latest version)
-            var dumpDownloader = new DumpDownloader();
             var pageDumpFileName = string.Format("{0}{1}-latest-page.sql.gz", srcLanguage, GetWikimediaExtension(wikimedia));
             var srcPagePropsFilePath = dumpDownloader.DownloadFile(pageDumpFileName);
             var langLinksDumpFileName = string.Format("{0}{1}-latest-langlinks.sql.gz", srcLanguage, GetWikimediaExtension(wikimedia));
@@ -119,10 +118,9 @@ namespace WikitionaryDumpParser.Src
         }
 
         private TranslatedEntities ExtractTranslatedEntitiesFromWiktionaryContent(string srcLanguage, string tgtLanguage,
-            Wikimedia wikimedia)
+            Wikimedia wikimedia, DumpDownloader dumpDownloader)
         {
             // Download dump files with pages and langlinks of the source language (always take the latest version)
-            var dumpDownloader = new DumpDownloader();
             var pagesDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", srcLanguage, GetWikimediaExtension(wikimedia));
             var srcPageFilePath = dumpDownloader.DownloadFile(pagesDumpFileName);
 

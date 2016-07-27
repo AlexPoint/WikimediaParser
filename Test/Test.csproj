@@ -64,10 +64,6 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\WikiParser\MediaWikiConverter.csproj">
-      <Project>{22044f4f-6129-4993-ad05-7a12cb5bbec0}</Project>
-      <Name>MediaWikiConverter</Name>
-    </ProjectReference>
     <ProjectReference Include="..\WikitionaryDumpParser\WikimediaDumpParser.csproj">
       <Project>{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}</Project>
       <Name>WikimediaDumpParser</Name>

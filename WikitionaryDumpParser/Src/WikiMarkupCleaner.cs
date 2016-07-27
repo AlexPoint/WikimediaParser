@@ -10,9 +10,10 @@ namespace Test.Src
 {
     public class WikiMarkupCleaner
     {
-        private static List<string> LastSectionsToFilter = new List<string>() { "See also", "References", "Further reading", "External links"};
+        private static List<string> _lastSectionsToFilter = new List<string>() { "See also", "References", "Further reading", "External links"};
+        private static readonly Regex LastSectionToFilterRegex = new Regex("\\={2,}\\s*("+ string.Join("|", _lastSectionsToFilter) + ")\\s*\\={2,}", RegexOptions.Compiled);
 
-        private static readonly Regex TitleRegex = new Regex(@"\={2,}([^\=]+)\={2,}", RegexOptions.Compiled);
+        private static readonly Regex TitleRegex = new Regex(@"\={2,}\s*([^\=]+)\s*\={2,}", RegexOptions.Compiled);
         /// <summary>
         /// Either [[multilingual]] -> multilingual
         /// OR [[entry|Entries]] -> Entries
@@ -89,7 +90,7 @@ namespace Test.Src
 
         public WikiMarkupCleaner(List<string> lastSectionsToFilter):this()
         {
-            LastSectionsToFilter = lastSectionsToFilter;
+            _lastSectionsToFilter = lastSectionsToFilter;
         }
 
 
@@ -109,7 +110,7 @@ namespace Test.Src
                 .Replace("\n", Environment.NewLine);
 
             // First cleanup sections
-            text = CleanupArticleSectionsAfter(text, LastSectionsToFilter);
+            text = CleanupArticleSectionsAfter(text, _lastSectionsToFilter);
 
             // Then cleanup markup
             text = CleanupMarkup(text);
@@ -191,24 +192,10 @@ namespace Test.Src
                 return text;
             }
 
-            var matches = TitleRegex.Matches(text);
-            for (var i = 0; i < matches.Count; i++)
+            var match = LastSectionToFilterRegex.Match(text);
+            if (match.Success)
             {
-                var match = matches[i];
-                if (match.Success && match.Groups.Count > 1)
-                {
-                    var title = match.Groups[1].Value;
-                    if (lastSections.Contains(title))
-                    {
-                        // Print removed text (for debug)
-                        //var removedText = text.Substring(match.Index);
-                        //Console.WriteLine("Removed section:");
-                        //Console.WriteLine(removedText);
-
-                        // return 
-                        return text.Substring(0, match.Index);
-                    }
-                }
+                return text.Substring(0, match.Index);
             }
 
             return text;
