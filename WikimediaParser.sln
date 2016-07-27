@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikimediaDumpParser", "WikitionaryDumpParser\WikimediaDumpParser.csproj", "{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MediaWikiConverter", "WikiParser\MediaWikiConverter.csproj", "{22044F4F-6129-4993-AD05-7A12CB5BBEC0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{22044F4F-6129-4993-AD05-7A12CB5BBEC0}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{22044F4F-6129-4993-AD05-7A12CB5BBEC0}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{22044F4F-6129-4993-AD05-7A12CB5BBEC0}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{22044F4F-6129-4993-AD05-7A12CB5BBEC0}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

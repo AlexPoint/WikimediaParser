@@ -19,8 +19,42 @@ namespace Test
         private static readonly string PathToProject = Environment.CurrentDirectory + "\\..\\..\\";
         private static readonly Regex LetterOnlyRegex = new Regex(@"^[a-zA-Z]+$", RegexOptions.Compiled);
 
+        private static readonly Dictionary<int, string> Actions = new Dictionary<int, string>()
+        {
+            {1, "Download dump file"},
+            {2, "Extract text from dump files"},
+            {3, "Compute word frequencies"}
+        };
+
         static void Main(string[] args)
         {
+            Console.WriteLine("Which action do you want to do?");
+            foreach (var action in Actions)
+            {
+                Console.WriteLine("{0} -> press {1}", action.Value, action.Key);
+            }
+            var result = Console.ReadLine();
+            Console.WriteLine();
+
+            int actionNumber;
+            if (int.TryParse(result, out actionNumber))
+            {
+                switch (actionNumber)
+                {
+                    case 1:
+                        DownloadDumpFiles();
+                        return;
+                    case 2:
+                        ExtractTextFromDumpFiles();
+                        return;
+                    case 3:
+                        return;
+                }
+            }
+
+            Console.WriteLine("This action is not supported");
+            Console.ReadKey();
+
             // Compare an article's raw and cleaned content
             //CompareWikiTextAndCleanText("Aristotle");
 
@@ -139,6 +173,69 @@ namespace Test
             File.WriteAllLines(pathToFrequencyFile, lines);
             
             Console.WriteLine("======= END ========");
+            Console.ReadKey();
+        }
+
+        private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
+
+        private static string RemoveHTMLTags(string htmlCode)
+        {
+            return Regex.Replace(htmlCode, "<[^>]*>", "");
+        }
+
+        private static string SanitizeFileName(string fileName)
+        {
+            var sb = new StringBuilder();
+            foreach (var c in fileName)
+            {
+                if (Path.GetInvalidFileNameChars().Contains(c))
+                {
+                    sb.Append('_');
+                }
+                else
+                {
+                    sb.Append(c);
+                }
+            }
+            return sb.ToString();
+        }
+
+        private static void ExtractTextFromDumpFiles()
+        {
+            var relevantFilePaths = Directory.GetFiles(PathToDownloadDirectory)
+                .Where(f => Regex.IsMatch(f, "enwiki-latest-pages-meta-current\\d") && Path.GetExtension(f) == ".bz2")
+                .ToList();
+            foreach (var relevantFilePath in relevantFilePaths)
+            {
+                var fileName = Path.GetFileNameWithoutExtension(relevantFilePath);
+
+                // We extract the articles in the directory with the same name
+                var directoryPath = PathToDownloadDirectory + fileName;
+                if (!Directory.Exists(directoryPath))
+                {
+                    Directory.CreateDirectory(directoryPath);
+                }
+
+                var xmlReader = new XmlDumpFileReader(relevantFilePath);
+                var next = xmlReader.ReadNext(s => false);
+                while (next != null)
+                {
+                    var filePath = directoryPath + "/" + SanitizeFileName(next.Title) + ".txt";
+                    var xhtml = WikiParser.Converter.MediaWikiToXhtml(next.Text);
+                    var text = RemoveHTMLTags(xhtml);
+                    File.WriteAllText(filePath, text);
+
+                    next = xmlReader.ReadNext(s => false);
+                }
+            }
+            Console.WriteLine("Extraction of text from dump files done.");
+            Console.WriteLine("========================================");
+        }
+        
+        private static void DownloadDumpFiles()
+        {
+            Console.WriteLine("Downloading of dump files done.");
+            Console.WriteLine("===============================");
             Console.ReadKey();
         }
 
