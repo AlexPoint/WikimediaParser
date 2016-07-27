@@ -44,143 +44,27 @@ namespace Test
                 switch (actionNumber)
                 {
                     case 1:
-                        DownloadDumpFiles();
+                        DownloadEnglishWikipediaDumpFiles();
                         return;
                     case 2:
                         ExtractTextFromDumpFiles();
                         return;
                     case 3:
+                        BuildFrequencyDictionary();
+                        Console.ReadKey();
                         return;
                 }
             }
 
             Console.WriteLine("This action is not supported");
             Console.ReadKey();
-
-            // Compare an article's raw and cleaned content
-            //CompareWikiTextAndCleanText("Aristotle");
-
-            // ------------------------
-
-            // There are 5,046,277 articles on English wikipedia as of Dec, 2015
-            const long flushBatchSize = 1000000;
-            const long nbOfSentencesToParse = 500000000;
-            var pathToFlushWordsFileFormat = PathToProject + "Data/flush/flushed-words.{0}.txt";
-            var pathToOccurenceNotFoundFileFormat = PathToProject + "Data/results/not-found-occurrences.{0}.txt";
-            var pathToMergedOccurrenceFileFormat = PathToProject + "Data/results/merged-occurrences.{0}.txt";
-            var wordFrequencies = new Dictionary<string, long>();
-            
-            // Downloads the dump file with the latest wikipedia pages' content.
-            var dumpDownloader = new DumpDownloader(PathToDownloadDirectory);
-            var pageDumpFileName = string.Format("{0}{1}-latest-pages-meta-current.xml.bz2", "en", "wiki");
-            var dumpFilePaths = dumpDownloader.DownloadLatestFiles("wiki", "en");
-
-            // Create the NLP objects necessary for processing the articles' text content (sentence detector and tokenizer)
-            var sentenceDetector = new EnglishMaximumEntropySentenceDetector(PathToProject + "Data/EnglishSD.nbin");
-            var tokenizer = new EnglishRuleBasedTokenizer(false);
-            var wikimarkupCleaner = new WikiMarkupCleaner();
-            var sentenceReader = new WikimediaSentencesReader(dumpFilePaths, title => title.Contains(":"),
-                wikimarkupCleaner, sentenceDetector);
-
-            // Browse et process all pages
-            Console.WriteLine("Start parsing {0} sentence in dump file", nbOfSentencesToParse);
-            var stopWatch = Stopwatch.StartNew();
-            var sentenceCounter = 0;
-            var sentenceAndWikiPage = sentenceReader.ReadNext();
-            while (sentenceAndWikiPage != null && sentenceCounter < nbOfSentencesToParse)
-            {
-                if (sentenceCounter % flushBatchSize == 0 && sentenceCounter > 0)
-                {
-                    Console.WriteLine("Step #{0}; page '{1}' (#{2})", sentenceCounter/flushBatchSize, sentenceAndWikiPage.Item2.Title, sentenceReader.WikiPageCounter);
-
-                    var batchIndex = sentenceCounter/flushBatchSize;
-                    
-                    // Post process word frequencies
-                    var mergeFilePath = string.Format(pathToMergedOccurrenceFileFormat, batchIndex);
-                    var notFoundFilePath = string.Format(pathToOccurenceNotFoundFileFormat, batchIndex);
-                    var batchWordFrequencies = FrequencyResults.Instance.BuildFrequencyDictionary(mergeFilePath, notFoundFilePath);
-
-                    // Merge with existing dictionary (keep only words)
-                    foreach (var wordFrequency in batchWordFrequencies.Where(ent => ent.Value > 1 || LetterOnlyRegex.IsMatch(ent.Key.Word)))
-                    {
-                        if (wordFrequencies.ContainsKey(wordFrequency.Key.Word))
-                        {
-                            // Update the frequency
-                            wordFrequencies[wordFrequency.Key.Word] += wordFrequency.Value;
-                        }
-                        else
-                        {
-                            // Add the entry
-                            wordFrequencies.Add(wordFrequency.Key.Word, wordFrequency.Value);
-                        }
-                    }
-                }
-
-                if (string.IsNullOrEmpty(sentenceAndWikiPage.Item1))
-                {
-                    Console.WriteLine("Empty article (redirect?): " + sentenceAndWikiPage.Item2.Title);
-                }
-
-                // Tokenize sentences and add the tokens with their frequency in the FrequencyResults object
-                var wordsAndFrequencies = tokenizer.Tokenize(sentenceAndWikiPage.Item1)
-                    .Where(token => !string.IsNullOrEmpty(token))
-                    .Select((token, index) => new
-                    {
-                        Word = token.Trim(),
-                        IsFirstTokenOfSentence = index == 0
-                    })
-                    .GroupBy(a => a)
-                    .Select(grp => new Tuple<WordOccurrence, long>(new WordOccurrence()
-                    {
-                        Word = grp.Key.Word,
-                        IsFirstTokenInSentence = grp.Key.IsFirstTokenOfSentence
-                    }, grp.Count()))
-                    .ToList();
-                FrequencyResults.Instance.AddOccurrences(wordsAndFrequencies, sentenceAndWikiPage.Item2.Title);
-
-                sentenceAndWikiPage = sentenceReader.ReadNext();
-                sentenceCounter++;
-            }
-            
-            stopWatch.Stop();
-            Console.WriteLine("Parsed {0} sentences in {1}", sentenceCounter, stopWatch.Elapsed.ToString("g"));
-
-            /*// Force flushing of the words still in the dictionary
-            // Post process word frequencies
-            var lastMergeFilePath = string.Format(pathToMergedOccurrenceFileFormat, "last");
-            var lastNotFoundFilePath = string.Format(pathToOccurenceNotFoundFileFormat, "last");
-            var batchWordFrequencies = FrequencyResults.Instance.BuildFrequencyDictionary(lastMergeFilePath, lastNotFoundFilePath);
-
-            // Merge with existing dictionary (keep only words)
-            foreach (var wordFrequency in batchWordFrequencies.Where(ent => ent.Value > 1 || LetterOnlyRegex.IsMatch(ent.Key.Word)))
-            {
-                if (wordFrequencies.ContainsKey(wordFrequency.Key.Word))
-                {
-                    // Update the frequency
-                    wordFrequencies[wordFrequency.Key.Word] += wordFrequency.Value;
-                }
-                else
-                {
-                    // Add the entry
-                    wordFrequencies.Add(wordFrequency.Key.Word, wordFrequency.Value);
-                }
-            }*/
-
-            // Write frequency results
-            Console.WriteLine("Writing frequencies");
-            var pathToFrequencyFile = PathToProject + "Data/frequency-results.txt";
-            var lines = wordFrequencies
-                .OrderByDescending(wf => wf.Value)
-                .Select(ent => string.Format("{0}|{1}", ent.Key, ent.Value));
-            File.WriteAllLines(pathToFrequencyFile, lines);
-            
-            Console.WriteLine("======= END ========");
-            Console.ReadKey();
         }
 
         private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
 
-
+        /// <summary>
+        /// Replace all invalid filename characters by '_'
+        /// </summary>
         private static string SanitizeFileName(string fileName)
         {
             var sb = new StringBuilder();
@@ -191,6 +75,64 @@ namespace Test
             return sb.ToString();
         }
 
+        private static void BuildFrequencyDictionary()
+        {
+            var sw = Stopwatch.StartNew();
+            Console.WriteLine("Building of frequency dictionary started");
+            var result = new FrequencyResults();
+
+            var relevantDirectories = Directory.GetDirectories(PathToDownloadDirectory)
+                .Where(dir => Regex.IsMatch(dir, "enwiki-latest-pages-meta-current"));
+            var sentenceDetector = new EnglishMaximumEntropySentenceDetector(PathToProject + "Data/EnglishSD.nbin");
+            var tokenizer = new EnglishRuleBasedTokenizer(false);
+
+            foreach (var directory in relevantDirectories)
+            {
+                var txtFiles = Directory.GetFiles(directory);
+                foreach (var txtFile in txtFiles)
+                {
+                    var sentences = File.ReadAllLines(txtFile)
+                        .Where(l => !string.IsNullOrEmpty(l))
+                        .SelectMany(l => sentenceDetector.SentenceDetect(l))
+                        .ToList();
+                    foreach (var sentence in sentences)
+                    {
+                        var tokens = tokenizer.Tokenize(sentence);
+                        for (var i = 0; i < tokens.Length; i++)
+                        {
+                            var wordOccurence = new WordOccurrence()
+                            {
+                                IsFirstTokenInSentence = i == 0,
+                                Word = tokens[i]
+                            };
+                            result.AddOccurence(wordOccurence);
+                        }
+                    }
+                }
+            }
+
+            // Save frequency files on disk
+            var frequencyDirectory = PathToDownloadDirectory + "frequencies";
+            if (!Directory.Exists(frequencyDirectory))
+            {
+                Directory.CreateDirectory(frequencyDirectory);
+            }
+            var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
+            result.SaveFrequencyDictionary(frequencyFilePath);
+            var excludedFrequencyFilePath = frequencyDirectory + "/excluded-frequencies.txt";
+            result.SaveExcludedFrequencyDictionary(excludedFrequencyFilePath);
+
+            Console.WriteLine("Building of frequency dictionary done");
+            Console.WriteLine("=====================================");
+
+            sw.Stop();
+            Console.WriteLine("Ellapsed time: {0}", sw.Elapsed.ToString("g"));
+        }
+
+        /// <summary>
+        /// For each dump files already downloaded on disk, extract the articles' text,
+        /// clean it and save it in a specific text file.
+        /// </summary>
         private static void ExtractTextFromDumpFiles()
         {
             Console.WriteLine("Extraction of text from dump files started");
@@ -217,13 +159,20 @@ namespace Test
                 var next = xmlReader.ReadNext(pageFilterer);
                 while (next != null)
                 {
-                    var filePath = directoryPath + "/" + SanitizeFileName(next.Title) + ".txt";
-                    // Cleanup article content
-                    var cleanedText = wikiMarkupCleaner.CleanArticleContent(next.Text);
-
-                    if (!string.IsNullOrEmpty(cleanedText))
+                    try
                     {
-                        File.WriteAllText(filePath, cleanedText); 
+                        var filePath = directoryPath + "/" + SanitizeFileName(next.Title) + ".txt";
+                        // Cleanup article content
+                        var cleanedText = wikiMarkupCleaner.CleanArticleContent(next.Text);
+
+                        if (!string.IsNullOrEmpty(cleanedText))
+                        {
+                            File.WriteAllText(filePath, cleanedText);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Exception raised on article '{0}': {1}", next.Title, ex.Message);
                     }
 
                     next = xmlReader.ReadNext(pageFilterer);
@@ -231,12 +180,16 @@ namespace Test
 
                 Console.WriteLine("Done extraction text from {0}", relevantFilePath);
                 Console.WriteLine("{0} articles extracted", Directory.GetFiles(directoryPath).Count());
+                Console.WriteLine("--------");
             }
             Console.WriteLine("Extraction of text from dump files done");
             Console.WriteLine("========================================");
         }
         
-        private static void DownloadDumpFiles()
+        /// <summary>
+        /// Download the English wikipedia dump files on disk.
+        /// </summary>
+        private static void DownloadEnglishWikipediaDumpFiles()
         {
             Console.WriteLine("Downloading of dump files started");
 

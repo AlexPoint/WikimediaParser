@@ -2,13 +2,6 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
-using System.Web.UI;
-using OpenNLP.Tools.Ling;
-using OpenNLP.Tools.Util;
-using WikitionaryDumpParser.Src;
 
 namespace Test.Src
 {
@@ -16,98 +9,72 @@ namespace Test.Src
     {
         private readonly Dictionary<WordOccurrence, long> WordFrequencies = new Dictionary<WordOccurrence, long>(new WordAndLocationComparer());
         private readonly Dictionary<WordOccurrence, long> ExcludedWordFrequencies = new Dictionary<WordOccurrence, long>(new WordAndLocationComparer());
-        private readonly Regex HasEnglishLetterRegex = new Regex(@"[a-zA-Z]+", RegexOptions.Compiled);
-        private readonly Regex HasDigitRegex = new Regex(@"\d+", RegexOptions.Compiled);
 
-        private static FrequencyResults _instance;
-        public static FrequencyResults Instance
-        {
-            get
-            {
-                if (_instance == null)
-                {
-                    _instance = new FrequencyResults();
-                }
-                return _instance;
-            }
-        }
 
-        private FrequencyResults() { }
+        // Constructors ------------------
+
+        public FrequencyResults() { }
 
 
         // Methods -----------------------
-
-        public List<WordOccurrence> FlushWordsWithFrequencyLessThan(long frequency)
+        
+        public void AddOccurence(WordOccurrence token)
         {
-            var wordsToRemove = this.WordFrequencies
-                .Where(ent => ent.Value <= frequency)
-                .Select(ent => ent.Key)
-                .ToList();
-            foreach (var keyValuePair in wordsToRemove)
+            var isTokenValid = true;
+            var hasEnglishLetter = false;
+            // Only a-z, A-Z, - and . are allowed
+            foreach (var c in token.Word)
             {
-                this.WordFrequencies.Remove(keyValuePair);
+                if ((65 <= c && c <= 90) || (97 <= c && c <= 122))
+                {
+                    hasEnglishLetter = true;
+                }
+                else if (c == 39 || c == 45 || c == 46)
+                {
+                    // character is valid but it's not a letter
+                }
+                else
+                {
+                    isTokenValid = false;
+                    break;
+                }
             }
-            return wordsToRemove;
-        }
 
-        public void AddOccurrences(List<Tuple<WordOccurrence, long>> words, string pageTitle)
-        {
-            foreach (var word in words)
-            {
-                AddOccurence(word, pageTitle, words.IndexOf(word));
-            }
-        }
-
-        private static readonly System.Collections.Generic.HashSet<string> WatchedWords = new System.Collections.Generic.HashSet<string>(new List<string>() { "*The", "/female" });
-        /*
-         * Also check: 
-         * - words with first letter capitalize and not beginning of sentence
-         * - words with first letter not capitalized and beginning of sentence
-        */
-
-        /*
-         * start with \ -> 2003 (/500k)
-         * start with non char -> 
-         */
-
-        /*
-         * TODO:
-         * - list all weird words
-         * - refactor parsing with different blocks (plug pre/post processing)
-         * - regex with balance group
-         */
-
-        public void AddOccurence(Tuple<WordOccurrence,long> wordAndFreq, string pageTitle, int index)
-        {
-            /*if (WatchedWords.Contains(wordAndFreq.Item1.Word) || wordAndFreq.Item1.Word.EndsWith(".jpg"))
-            {
-                WatchedWords.Remove(wordAndFreq.Item1.Word);
-                // Log only the first time
-                Console.WriteLine("'{0}' found in '{1}' at index {2}", wordAndFreq, pageTitle, index);
-            }*/
-
-            // We have several words with digits (ex: 642.4km²) which don't add any valuable information -> filter them
-            if (HasDigitRegex.IsMatch(wordAndFreq.Item1.Word))
+            if (!isTokenValid && !hasEnglishLetter)
             {
                 return;
             }
 
-            var relevantDictionary = HasEnglishLetterRegex.IsMatch(wordAndFreq.Item1.Word)
-                ? WordFrequencies
-                : ExcludedWordFrequencies;
+            var relevantDictionary = isTokenValid && hasEnglishLetter ? WordFrequencies : ExcludedWordFrequencies;
 
-            var alreadyExist = relevantDictionary.ContainsKey(wordAndFreq.Item1);
+            var alreadyExist = relevantDictionary.ContainsKey(token);
             if (alreadyExist)
             {
-                relevantDictionary[wordAndFreq.Item1] += wordAndFreq.Item2;
+                relevantDictionary[token]++;
             }
             else
             {
-                relevantDictionary.Add(wordAndFreq.Item1, wordAndFreq.Item2);
+                relevantDictionary.Add(token, 1);
             }
         }
 
-        public void WriteFiles(string keptWordsFilePath, string excludedWordsFilePath, string mergedWordsFilePath, string notFoundWordsFilePath)
+        public void SaveFrequencyDictionary(string filePath)
+        {
+            var lines = WordFrequencies
+                .OrderByDescending(d => d.Value)
+                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Word, ent.Key.IsFirstTokenInSentence, ent.Value));
+            File.WriteAllLines(filePath, lines);
+        }
+
+        public void SaveExcludedFrequencyDictionary(string filePath)
+        {
+            var lines = ExcludedWordFrequencies
+                .OrderByDescending(d => d.Value)
+                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Word, ent.Key.IsFirstTokenInSentence, ent.Value));
+            File.WriteAllLines(filePath, lines);
+        }
+
+        /*public void WriteFiles(string keptWordsFilePath, string excludedWordsFilePath, string mergedWordsFilePath, string notFoundWordsFilePath)
         {
             var filterWordFrequencies = PostProcessWords(WordFrequencies, mergedWordsFilePath, notFoundWordsFilePath);
 
@@ -233,7 +200,7 @@ namespace Test.Src
             
 
             return wordOccurences;
-        }
+        }*/
     }
 
     public class WordAndLocationComparer : IEqualityComparer<WordOccurrence>
