@@ -75,21 +75,19 @@ namespace Test
             return sb.ToString();
         }
 
-        private static void BuildFrequencyDictionary()
+        private static void ExtractTokensFromTxtFiles(Func<string[], bool> tokensProcessor, int nbOfSentencesToParse,
+            int nbOfSentencesToSkip = 0)
         {
-            var sw = Stopwatch.StartNew();
-            Console.WriteLine("Building of frequency dictionary started");
-            var result = new FrequencyResults();
-
             var relevantDirectories = Directory.GetDirectories(PathToDownloadDirectory)
                 .Where(dir => Regex.IsMatch(dir, "enwiki-latest-pages-meta-current"));
             var sentenceDetector = new EnglishMaximumEntropySentenceDetector(PathToProject + "Data/EnglishSD.nbin");
             var tokenizer = new EnglishRuleBasedTokenizer(false);
 
-            foreach (var directory in relevantDirectories)
+            var sentenceCounter = 0;
+            foreach (var directory in relevantDirectories.OrderBy(d => d)) // ordering is important here to be able to relaunch the parsing from anywhere
             {
                 var txtFiles = Directory.GetFiles(directory);
-                foreach (var txtFile in txtFiles)
+                foreach (var txtFile in txtFiles.OrderBy(f => f)) // ordering is important here to be able to relaunch the parsing from anywhere
                 {
                     var sentences = File.ReadAllLines(txtFile)
                         .Where(l => !string.IsNullOrEmpty(l))
@@ -97,30 +95,82 @@ namespace Test
                         .ToList();
                     foreach (var sentence in sentences)
                     {
-                        var tokens = tokenizer.Tokenize(sentence);
-                        for (var i = 0; i < tokens.Length; i++)
+                        // Increase counter
+                        sentenceCounter++;
+                        if (sentenceCounter > nbOfSentencesToParse)
                         {
-                            var wordOccurence = new WordOccurrence()
-                            {
-                                IsFirstTokenInSentence = i == 0,
-                                Word = tokens[i]
-                            };
-                            result.AddOccurence(wordOccurence);
+                            return;
                         }
+                        if (sentenceCounter <= nbOfSentencesToSkip)
+                        {
+                            continue;
+                        }
+
+                        var tokens = tokenizer.Tokenize(sentence);
+                        var success = tokensProcessor(tokens);
                     }
                 }
+                Console.WriteLine("Done parsing sentences in directory: '{0}'", directory);
             }
+        }
 
-            // Save frequency files on disk
+        private static void BuildFrequencyDictionary()
+        {
+            var result = new FrequencyResults();
+
+            Console.WriteLine("How many sentences do you want to parse?");
+            var nbOfSentencesToParse = int.Parse(Console.ReadLine());
+
+            var nbOfAlreadyParsedSentences = 0;
             var frequencyDirectory = PathToDownloadDirectory + "frequencies";
             if (!Directory.Exists(frequencyDirectory))
             {
                 Directory.CreateDirectory(frequencyDirectory);
             }
+            var nbOfSentencesParsedFilePath = frequencyDirectory + "/nbOfSentencesParsed.txt";
+            if (File.Exists(nbOfSentencesParsedFilePath))
+            {
+                int nbOfSentencesParsed;
+                if (int.TryParse(File.ReadAllText(nbOfSentencesParsedFilePath), out nbOfSentencesParsed))
+                {
+                    Console.WriteLine("{0} sentences have already been parsed. Resume parsing? (y/n)", nbOfSentencesParsed);
+                    var resumeParsing = string.Equals(Console.ReadLine(), "Y", StringComparison.InvariantCultureIgnoreCase);
+                    if (resumeParsing)
+                    {
+                        nbOfAlreadyParsedSentences = nbOfSentencesParsed; 
+
+                    }
+                }
+            }
+
+            var sw = Stopwatch.StartNew();
+            Console.WriteLine("Building of frequency dictionary started");
+
+            // Tokenize the sentences and compute the frequencies
+            Func<string[], bool> extractTokens = tokens =>
+            {
+                for (var i = 0; i < tokens.Length; i++)
+                {
+                    var wordOccurence = new WordOccurrence()
+                    {
+                        IsFirstTokenInSentence = i == 0,
+                        Word = tokens[i]
+                    };
+                    result.AddOccurence(wordOccurence);
+                }
+                return true;
+            };
+            ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
+            
+            // Save frequency files on disk
             var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
             result.SaveFrequencyDictionary(frequencyFilePath);
             var excludedFrequencyFilePath = frequencyDirectory + "/excluded-frequencies.txt";
             result.SaveExcludedFrequencyDictionary(excludedFrequencyFilePath);
+
+            // Save the nb of sentences parsed (for information and being able to relaunch the parsing at this point)
+            result.NbOfSentencesParsed = nbOfSentencesToParse;
+            File.WriteAllText(nbOfSentencesParsedFilePath, result.NbOfSentencesParsed.ToString());
 
             Console.WriteLine("Building of frequency dictionary done");
             Console.WriteLine("=====================================");
