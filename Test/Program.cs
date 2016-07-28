@@ -228,6 +228,7 @@ namespace Test
             var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
             var excludedFrequencyFilePath = frequencyDirectory + "/excluded-frequencies.txt";
             var nbOfSentencesParsedFilePath = frequencyDirectory + "/nbOfSentencesParsed.txt";
+            var parsingResumed = false;
             if (File.Exists(nbOfSentencesParsedFilePath))
             {
                 int nbOfSentencesParsed;
@@ -237,9 +238,8 @@ namespace Test
                     var resumeParsing = string.Equals(Console.ReadLine(), "Y", StringComparison.InvariantCultureIgnoreCase);
                     if (resumeParsing)
                     {
-                        nbOfAlreadyParsedSentences = nbOfSentencesParsed; 
-                        result.LoadFrequencyDictionary(frequencyFilePath);
-                        result.LoadFrequencyDictionary(excludedFrequencyFilePath);
+                        nbOfAlreadyParsedSentences = nbOfSentencesParsed;
+                        parsingResumed = true;
                     }
                 }
             }
@@ -262,6 +262,13 @@ namespace Test
                 return true;
             };
             ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
+
+            // Load previous frequency dictionaries that were already computed
+            if (parsingResumed)
+            {
+                result.LoadFrequencyDictionary(frequencyFilePath);
+                result.LoadFrequencyDictionary(excludedFrequencyFilePath);
+            }
             
             // Save frequency files on disk
             result.SaveFrequencyDictionary(frequencyFilePath);
