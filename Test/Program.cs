@@ -23,7 +23,8 @@ namespace Test
         {
             {1, "Download dump file"},
             {2, "Extract text from dump files"},
-            {3, "Compute word frequencies"}
+            {3, "Compute word frequencies"},
+            {4, "Post process frequencies"}
         };
 
         static void Main(string[] args)
@@ -45,22 +46,107 @@ namespace Test
                 {
                     case 1:
                         DownloadEnglishWikipediaDumpFiles();
-                        return;
+                        break;
                     case 2:
                         ExtractTextFromDumpFiles();
-                        return;
+                        break;
                     case 3:
                         BuildFrequencyDictionary();
-                        Console.ReadKey();
-                        return;
+                        break;
+                    case 4:
+                        PostProcessFrequencyDictionary();
+                        break;
+                    default:
+                        Console.WriteLine("This action is not supported");
+                        break;
                 }
             }
 
-            Console.WriteLine("This action is not supported");
+            
             Console.ReadKey();
         }
 
         private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
+
+        private static void PostProcessFrequencyDictionary()
+        {
+            var result = new FrequencyResults();
+            var frequencyDirectory = PathToDownloadDirectory + "frequencies";
+            var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
+
+            result.LoadFrequencyDictionary(frequencyFilePath);
+
+            var groupedTokens = new Dictionary<string, List<WordOccurrenceAndFrequency>>();
+            foreach (var wordFrequency in result.WordFrequencies)
+            {
+                var lcToken = wordFrequency.Key.Word.ToLowerInvariant();
+                if (groupedTokens.ContainsKey(lcToken))
+                {
+                    groupedTokens[lcToken].Add(new WordOccurrenceAndFrequency()
+                    {
+                        Word = wordFrequency.Key.Word,
+                        IsFirstTokenInSentence = wordFrequency.Key.IsFirstTokenInSentence,
+                        Frequency = wordFrequency.Value
+                    });
+                }
+                else
+                {
+                    groupedTokens[lcToken] = new List<WordOccurrenceAndFrequency>()
+                    {
+                        new WordOccurrenceAndFrequency()
+                        {
+                            Word = wordFrequency.Key.Word,
+                            IsFirstTokenInSentence = wordFrequency.Key.IsFirstTokenInSentence,
+                            Frequency = wordFrequency.Value
+                        }
+                    };
+                }
+            }
+
+            var mergedTokens = new Dictionary<string, List<WordOccurrenceAndFrequency>>();
+            foreach (var grp in groupedTokens)
+            {
+                var list = grp.Value.Where(v => !v.IsFirstTokenInSentence).ToList();
+
+                // Merge tokens which are first in sentence with others
+                foreach (var token in grp.Value.Where(wf => wf.IsFirstTokenInSentence))
+                {
+                    // Find other tokens which are not the first in the sentence and increase their frequency respectively to their frequency
+                    var otherTokens = list.Where(v => v.Word == token.Word || v.Word == LowerCaseFirstLetter(token.Word)).ToList();
+                    if (otherTokens.Any())
+                    {
+                        var totalGrpFreq = otherTokens.Sum(t => t.Frequency);
+                        foreach (var otherToken in otherTokens)
+                        {
+                            otherToken.Frequency += (token.Frequency*otherToken.Frequency)/totalGrpFreq;
+                        }
+
+                    }
+                    else
+                    {
+                        list.Add(token);
+                    }
+                }
+
+                mergedTokens.Add(grp.Key, list);
+            }
+
+            // Print the top 100 for
+            var postProcessedFrequencyFilePath = frequencyDirectory + "/post-processed-frequencies.txt";
+            var lines = mergedTokens
+                .Select(ent => string.Join("|||",
+                            ent.Value.Select(wf => string.Format("{0}|{1}|{2}", wf.Word, wf.IsFirstTokenInSentence, wf.Frequency))));
+            File.WriteAllLines(postProcessedFrequencyFilePath, lines);
+        }
+
+        private static string LowerCaseFirstLetter(string word)
+        {
+            if (string.IsNullOrEmpty(word))
+            {
+                return "";
+            }
+            return char.ToLower(word[0]) + word.Substring(1);
+        }
 
         /// <summary>
         /// Replace all invalid filename characters by '_'

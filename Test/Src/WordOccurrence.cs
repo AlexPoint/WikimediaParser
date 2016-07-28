@@ -16,4 +16,9 @@ namespace Test.Src
             return string.Format("{0} ({1})", this.Word, this.IsFirstTokenInSentence);
         }
     }
+
+    public class WordOccurrenceAndFrequency: WordOccurrence
+    {
+        public long Frequency { get; set; }
+    }
 }
