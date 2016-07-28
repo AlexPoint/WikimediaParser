@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -19,6 +20,7 @@ namespace Test.Src
         public CollocationResults()
         {
             this.Bigrams = new Dictionary<string, TopWordAndCounter>();
+            this.WordFrequencies = new Dictionary<string, long>();
         }
 
         // Methods ------------------
@@ -80,7 +82,7 @@ namespace Test.Src
             }
         }
 
-        public List<Tuple<string, string, double>> ComputePMIs()
+        public List<Tuple<string, string, double>> ComputePMIs(int collocationFrequencyFilter)
         {
             var results = new List<Tuple<string, string, double>>();
 
@@ -89,9 +91,12 @@ namespace Test.Src
                 var topWordAndCounter = bigram.Value;
                 foreach (var previousWord in topWordAndCounter.PreviousWordsAndFrequencies)
                 {
-                    var nbOfX = WordFrequencies[bigram.Key];
-                    var pmi = ComputePMI(previousWord.Value, topWordAndCounter.CounterWhenAfterAnotherWord, nbOfX, TotalWordCounter);
-                    results.Add(new Tuple<string, string, double>(previousWord.Key, bigram.Key, pmi));
+                    if (collocationFrequencyFilter <= previousWord.Value)
+                    {
+                        var nbOfX = WordFrequencies[bigram.Key];
+                        var pmi = ComputePMI(previousWord.Value, topWordAndCounter.CounterWhenAfterAnotherWord, nbOfX, TotalWordCounter);
+                        results.Add(new Tuple<string, string, double>(previousWord.Key, bigram.Key, pmi)); 
+                    }
                 }
             }
 
@@ -100,7 +105,15 @@ namespace Test.Src
 
         private static double ComputePMI(long nbOfXAfterY, long nbOfXAfterAnything, long nbOfX, long nbOfWords)
         {
-            return Math.Log10((double) (nbOfXAfterY/nbOfXAfterAnything)/(double) (nbOfX/nbOfWords));
+            return Math.Log10(((double)nbOfXAfterY / nbOfXAfterAnything) / ((double)nbOfX / nbOfWords));
+        }
+
+        public void SaveCollocationPMIs(string filePath, int collocationFrequencyFilter)
+        {
+            var lines = ComputePMIs(collocationFrequencyFilter)
+                .OrderByDescending(tup => tup.Item3)
+                .Select(tup => string.Format("{0}|{1}|{2}", tup.Item1, tup.Item2, tup.Item3));
+            File.WriteAllLines(filePath, lines);
         }
     }
 

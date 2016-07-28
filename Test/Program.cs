@@ -24,7 +24,8 @@ namespace Test
             {1, "Download dump file"},
             {2, "Extract text from dump files"},
             {3, "Compute word frequencies"},
-            {4, "Post process frequencies"}
+            {4, "Post process frequencies"},
+            {5, "Compute bigram PMIs"}
         };
 
         static void Main(string[] args)
@@ -56,6 +57,9 @@ namespace Test
                     case 4:
                         PostProcessFrequencyDictionary();
                         break;
+                    case 5:
+                        BuildBigramsPMIs();
+                        break;
                     default:
                         Console.WriteLine("This action is not supported");
                         break;
@@ -67,6 +71,71 @@ namespace Test
         }
 
         private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
+
+        private static void BuildBigramsPMIs()
+        {
+            var result = new CollocationResults();
+
+            Console.WriteLine("How many sentences do you want to parse?");
+            var nbOfSentencesToParse = int.Parse(Console.ReadLine());
+            Console.WriteLine("Filter collocations with frequency less than:");
+            var collocationFrequencyFilter = int.Parse(Console.ReadLine());
+
+            var nbOfAlreadyParsedSentences = 0;
+            var frequencyDirectory = PathToDownloadDirectory + "collocation";
+            if (!Directory.Exists(frequencyDirectory))
+            {
+                Directory.CreateDirectory(frequencyDirectory);
+            }
+            var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
+            var excludedFrequencyFilePath = frequencyDirectory + "/excluded-frequencies.txt";
+            var nbOfSentencesParsedFilePath = frequencyDirectory + "/nbOfSentencesParsed.txt";
+            /*var parsingResumed = false;
+            if (File.Exists(nbOfSentencesParsedFilePath))
+            {
+                int nbOfSentencesParsed;
+                if (int.TryParse(File.ReadAllText(nbOfSentencesParsedFilePath), out nbOfSentencesParsed))
+                {
+                    Console.WriteLine("{0} sentences have already been parsed. Resume parsing? (y/n)", nbOfSentencesParsed);
+                    var resumeParsing = string.Equals(Console.ReadLine(), "Y", StringComparison.InvariantCultureIgnoreCase);
+                    if (resumeParsing)
+                    {
+                        nbOfAlreadyParsedSentences = nbOfSentencesParsed;
+                        parsingResumed = true;
+                    }
+                }
+            }*/
+
+            var sw = Stopwatch.StartNew();
+            Console.WriteLine("Building of collocation PMIs started");
+
+            // Tokenize the sentences and compute the frequencies
+            Func<string[], bool> extractTokens = tokens =>
+            {
+                result.AddBigrams(tokens);
+                return true;
+            };
+            ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
+
+            // Load previous frequency dictionaries that were already computed
+            /*if (parsingResumed)
+            {
+                result.LoadFrequencyDictionary(frequencyFilePath);
+                result.LoadFrequencyDictionary(excludedFrequencyFilePath);
+            }*/
+
+            // Save frequency files on disk
+            result.SaveCollocationPMIs(frequencyFilePath, collocationFrequencyFilter);
+
+            // Save the nb of sentences parsed (for information and being able to relaunch the parsing at this point)
+            File.WriteAllText(nbOfSentencesParsedFilePath, nbOfSentencesToParse.ToString());
+
+            Console.WriteLine("Building of collocation PMIs done");
+            Console.WriteLine("=====================================");
+
+            sw.Stop();
+            Console.WriteLine("Ellapsed time: {0}", sw.Elapsed.ToString("g"));
+        }
 
         private static void PostProcessFrequencyDictionary()
         {
@@ -278,8 +347,7 @@ namespace Test
             result.SaveExcludedFrequencyDictionary(excludedFrequencyFilePath);
 
             // Save the nb of sentences parsed (for information and being able to relaunch the parsing at this point)
-            result.NbOfSentencesParsed = nbOfSentencesToParse;
-            File.WriteAllText(nbOfSentencesParsedFilePath, result.NbOfSentencesParsed.ToString());
+            File.WriteAllText(nbOfSentencesParsedFilePath, nbOfSentencesToParse.ToString());
 
             Console.WriteLine("Building of frequency dictionary done");
             Console.WriteLine("=====================================");

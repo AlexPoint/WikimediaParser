@@ -10,13 +10,10 @@ namespace Test.Src
         public readonly Dictionary<WordOccurrence, long> WordFrequencies = new Dictionary<WordOccurrence, long>(new WordAndLocationComparer());
         public readonly Dictionary<WordOccurrence, long> ExcludedWordFrequencies = new Dictionary<WordOccurrence, long>(new WordAndLocationComparer());
 
-        public long NbOfSentencesParsed { get; set; }
-
         // Constructors ------------------
 
         public FrequencyResults()
         {
-            NbOfSentencesParsed = 0;
         }
 
 
