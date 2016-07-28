@@ -78,7 +78,7 @@ namespace Test.Src
             File.WriteAllLines(filePath, lines);
         }
 
-        public void LoadFrequencyDictionary(string filePath)
+        public void LoadFrequencyDictionary(string filePath, int minimumFrequency = 0)
         {
             var lines = File.ReadAllLines(filePath);
             foreach (var line in lines)
@@ -92,7 +92,10 @@ namespace Test.Src
                         IsFirstTokenInSentence = bool.Parse(parts[1])
                     };
                     var freq = long.Parse(parts[2]);
-                    this.AddOccurence(wordOccurrence, freq);
+                    if (minimumFrequency <= freq)
+                    {
+                        this.AddOccurence(wordOccurrence, freq); 
+                    }
                 }
             }
         }

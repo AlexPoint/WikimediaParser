@@ -70,13 +70,16 @@ namespace Test
 
         private static void PostProcessFrequencyDictionary()
         {
+            Console.WriteLine("Which minimum frequency should be used for building dictionaries?");
+            var minFrequency = int.Parse(Console.ReadLine());
+
             Console.WriteLine("Started writing frequency list");
 
             var result = new FrequencyResults();
             var frequencyDirectory = PathToDownloadDirectory + "frequencies";
             var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
 
-            result.LoadFrequencyDictionary(frequencyFilePath);
+            result.LoadFrequencyDictionary(frequencyFilePath, minFrequency);
 
             var groupedTokens = new Dictionary<string, List<WordOccurrenceAndFrequency>>();
             foreach (var wordFrequency in result.WordFrequencies)
