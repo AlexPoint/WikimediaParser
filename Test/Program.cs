@@ -127,6 +127,8 @@ namespace Test
             {
                 Directory.CreateDirectory(frequencyDirectory);
             }
+            var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
+            var excludedFrequencyFilePath = frequencyDirectory + "/excluded-frequencies.txt";
             var nbOfSentencesParsedFilePath = frequencyDirectory + "/nbOfSentencesParsed.txt";
             if (File.Exists(nbOfSentencesParsedFilePath))
             {
@@ -138,7 +140,8 @@ namespace Test
                     if (resumeParsing)
                     {
                         nbOfAlreadyParsedSentences = nbOfSentencesParsed; 
-
+                        result.LoadFrequencyDictionary(frequencyFilePath);
+                        result.LoadFrequencyDictionary(excludedFrequencyFilePath);
                     }
                 }
             }
@@ -163,9 +166,7 @@ namespace Test
             ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
             
             // Save frequency files on disk
-            var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
             result.SaveFrequencyDictionary(frequencyFilePath);
-            var excludedFrequencyFilePath = frequencyDirectory + "/excluded-frequencies.txt";
             result.SaveExcludedFrequencyDictionary(excludedFrequencyFilePath);
 
             // Save the nb of sentences parsed (for information and being able to relaunch the parsing at this point)

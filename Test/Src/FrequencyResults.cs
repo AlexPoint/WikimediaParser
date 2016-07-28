@@ -22,7 +22,7 @@ namespace Test.Src
 
         // Methods -----------------------
         
-        public void AddOccurence(WordOccurrence token)
+        public void AddOccurence(WordOccurrence token, long frequency = 1)
         {
             var isTokenValid = true;
             var hasEnglishLetter = false;
@@ -54,11 +54,11 @@ namespace Test.Src
             var alreadyExist = relevantDictionary.ContainsKey(token);
             if (alreadyExist)
             {
-                relevantDictionary[token]++;
+                relevantDictionary[token] += frequency;
             }
             else
             {
-                relevantDictionary.Add(token, 1);
+                relevantDictionary.Add(token, frequency);
             }
         }
 
@@ -76,6 +76,25 @@ namespace Test.Src
                 .OrderByDescending(d => d.Value)
                 .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Word, ent.Key.IsFirstTokenInSentence, ent.Value));
             File.WriteAllLines(filePath, lines);
+        }
+
+        public void LoadFrequencyDictionary(string filePath)
+        {
+            var lines = File.ReadAllLines(filePath);
+            foreach (var line in lines)
+            {
+                var parts = line.Split('|');
+                if (parts.Length == 3)
+                {
+                    var wordOccurrence = new WordOccurrence()
+                    {
+                        Word = parts[0],
+                        IsFirstTokenInSentence = bool.Parse(parts[1])
+                    };
+                    var freq = long.Parse(parts[2]);
+                    this.AddOccurence(wordOccurrence, freq);
+                }
+            }
         }
 
         /*public void WriteFiles(string keptWordsFilePath, string excludedWordsFilePath, string mergedWordsFilePath, string notFoundWordsFilePath)
