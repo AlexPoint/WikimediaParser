@@ -70,6 +70,8 @@ namespace Test
 
         private static void PostProcessFrequencyDictionary()
         {
+            Console.WriteLine("Started writing frequency list");
+
             var result = new FrequencyResults();
             var frequencyDirectory = PathToDownloadDirectory + "frequencies";
             var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
@@ -131,12 +133,22 @@ namespace Test
                 mergedTokens.Add(grp.Key, list);
             }
 
-            // Print the top 100 for
+            // Post processed frequencies for debug
             var postProcessedFrequencyFilePath = frequencyDirectory + "/post-processed-frequencies.txt";
-            var lines = mergedTokens
+            var ppLines = mergedTokens
                 .Select(ent => string.Join("|||",
                             ent.Value.Select(wf => string.Format("{0}|{1}|{2}", wf.Word, wf.IsFirstTokenInSentence, wf.Frequency))));
-            File.WriteAllLines(postProcessedFrequencyFilePath, lines);
+            File.WriteAllLines(postProcessedFrequencyFilePath, ppLines);
+
+            // Final frequency list
+            var frequencyListPath = frequencyDirectory + "/frequency-list.txt";
+            var flLines = mergedTokens
+                .SelectMany(ent => ent.Value)
+                .OrderByDescending(wf => wf.Frequency)
+                .Select(wf => string.Format("{0}|{1}", wf.Word, wf.Frequency));
+            File.WriteAllLines(frequencyListPath, flLines);
+
+            Console.WriteLine("Finished writing ferquency list");
         }
 
         private static string LowerCaseFirstLetter(string word)
