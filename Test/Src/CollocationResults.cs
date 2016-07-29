@@ -36,7 +36,7 @@ namespace Test.Src
             }
             else
             {
-                WordFrequencies.Add(word, 1);
+                WordFrequencies.Add(word, frequency);
             }
         }
 
