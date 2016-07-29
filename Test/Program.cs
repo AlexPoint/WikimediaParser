@@ -16,7 +16,7 @@ namespace Test
 {
     class Program
     {
-        private static readonly string PathToProject = Environment.CurrentDirectory + "\\..\\..\\";
+        
         private static readonly Regex LetterOnlyRegex = new Regex(@"^[a-zA-Z]+$", RegexOptions.Compiled);
 
         private static readonly Dictionary<int, string> Actions = new Dictionary<int, string>()
@@ -24,9 +24,9 @@ namespace Test
             {1, "Download dump file"},
             {2, "Extract text from dump files"},
             {3, "Compute word frequencies"},
-            {4, "Post process frequencies"},
-            {5, "Compute bigram frequencies"},
-            {6, "Post process bigram frequencies"}
+            {4, "Post process word frequencies"},
+            {5, "Compute ngrams frequencies"},
+            {6, "Post process ngram frequencies"}
         };
 
         static void Main(string[] args)
@@ -59,7 +59,7 @@ namespace Test
                         PostProcessFrequencyDictionary();
                         break;
                     case 5:
-                        BuildNgramsFrequencies();
+                        ComputeNgramsFrequencies();
                         break;
                     case 6:
                         PostProcessBiGramsFrequencies();
@@ -74,40 +74,22 @@ namespace Test
             Console.ReadKey();
         }
 
-        private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
-
         private static void PostProcessBiGramsFrequencies()
         {
+            Console.WriteLine("For which value of 'n'?");
+            var n = int.Parse(Console.ReadLine());
+
             Console.WriteLine("Filter collocations with frequency less than:");
             var collocationFrequencyFilter = int.Parse(Console.ReadLine());
 
-            var sw = Stopwatch.StartNew();
-            Console.WriteLine("Start post processing ngrams frequencies");
-
-            // Load results
-            var result = new CollocationResults();
-
-            var collocationDirectory = PathToDownloadDirectory + "collocation";
-            if (!Directory.Exists(collocationDirectory))
-            {
-                Directory.CreateDirectory(collocationDirectory);
-            }
-            var wordFrequencyFilePath = collocationDirectory + "/word-frequencies.txt";
-            var ngramFreqFilePath = collocationDirectory + "/ngrams-frequencies.txt";
-            result.LoadResults(wordFrequencyFilePath, ngramFreqFilePath);
-
-            // Save frequency files on disk
-            var ngramsPmisFilePath = collocationDirectory + "/ngrams-pmis.txt";
-            result.SaveCollocationPMIs(ngramsPmisFilePath, collocationFrequencyFilter);
-
-            Console.WriteLine("Done post processing ngrams frequencies");
-            sw.Stop();
-            Console.WriteLine("Executed in {0}", sw.Elapsed.ToString("g"));
+            var builder = new NgramPmisBuilder(n, collocationFrequencyFilter);
+            builder.ComputePmis();
         }
 
-        private static void BuildNgramsFrequencies()
+        private static void ComputeNgramsFrequencies()
         {
-            var result = new CollocationResults();
+            Console.WriteLine("For which value of 'n'?");
+            var n = int.Parse(Console.ReadLine());
 
             Console.WriteLine("How many sentences do you want to parse?");
             var nbOfSentencesToParse = int.Parse(Console.ReadLine());
@@ -116,100 +98,10 @@ namespace Test
             var flushMinFrequency = int.Parse(Console.ReadLine());
             Console.WriteLine("Flush ngrams with low frequency every x sentence. x?");
             var flushNbOfSentences = int.Parse(Console.ReadLine());
-            
-            var nbOfAlreadyParsedSentences = 0;
-            var collocationDirectory = PathToDownloadDirectory + "collocation";
-            if (!Directory.Exists(collocationDirectory))
-            {
-                Directory.CreateDirectory(collocationDirectory);
-            }
-            var wordFrequencyFilePath = collocationDirectory + "/word-frequencies.txt";
-            var ngramFreqFilePath = collocationDirectory + "/ngrams-frequencies.txt";
-            var nbOfSentencesParsedFilePath = collocationDirectory + "/nbOfSentencesParsed.txt";
-            var parsingResumed = false;
-            if (File.Exists(nbOfSentencesParsedFilePath))
-            {
-                int nbOfSentencesParsed;
-                if (int.TryParse(File.ReadAllText(nbOfSentencesParsedFilePath), out nbOfSentencesParsed))
-                {
-                    Console.WriteLine("{0} sentences have already been parsed. Resume parsing? (y/n)", nbOfSentencesParsed);
-                    var resumeParsing = string.Equals(Console.ReadLine(), "Y", StringComparison.InvariantCultureIgnoreCase);
-                    if (resumeParsing)
-                    {
-                        nbOfAlreadyParsedSentences = nbOfSentencesParsed;
-                        parsingResumed = true;
-                    }
-                }
-            }
 
-            // Final frequency list
-            Console.WriteLine("Load frequency list");
-            var frequencyDirectory = PathToDownloadDirectory + "frequencies";
-            var frequencyListPath = frequencyDirectory + "/frequency-list - 150m.txt";
-            var freqDic = new Dictionary<string, long>();
-            using (var reader = new StreamReader(File.OpenRead(frequencyListPath)))
-            {
-                var line = reader.ReadLine();
-                while (line != null)
-                {
-                    var parts = line.Split('|');
-                    if (parts.Length == 2)
-                    {
-                        freqDic.Add(parts[0], long.Parse(parts[1]));
-                    }
-
-                    line = reader.ReadLine();
-                }
-            }
-
-            var sw = Stopwatch.StartNew();
-            Console.WriteLine("Building of collocation PMIs started");
-
-            // Tokenize the sentences and compute the frequencies
-            Func<string[], int, bool> extractTokens = (tokens, sentenceCounter) =>
-            {
-                if (sentenceCounter%flushNbOfSentences == 0)
-                {
-                    var nbOfFlushedNGrams = result.FlushNgramsWithFrequencyBelow(flushMinFrequency);
-                    Console.WriteLine("Flushed {0} ngrams with frequency below {1}", nbOfFlushedNGrams, flushMinFrequency);
-                }
-
-                // Lowercase the first token if necessary
-                if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0]) && char.IsLetter(tokens[0][0]))
-                {
-                    long freq;
-                    long lcFreq;
-                    if (freqDic.TryGetValue(tokens[0], out freq) && freqDic.TryGetValue(LowerCaseFirstLetter(tokens[0]), out lcFreq) && lcFreq > freq)
-                    {
-                        tokens[0] = LowerCaseFirstLetter(tokens[0]);
-                    }
-                }
-                result.AddBigrams(tokens);
-                return true;
-            };
-            ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
-
-            // Final flushing
-            Console.WriteLine("Flushed {0} ngrams with frequency below {1}", result.FlushNgramsWithFrequencyBelow(flushMinFrequency), flushMinFrequency);
-
-            // Load previous frequency dictionaries that were already computed
-            Console.WriteLine("Loading previous results");
-            if (parsingResumed)
-            {
-                result.LoadResults(wordFrequencyFilePath, ngramFreqFilePath);
-            }
-
-            // Save results on disk for later
-            Console.WriteLine("Saving results on disk");
-            result.SaveResults(wordFrequencyFilePath, ngramFreqFilePath);
-            // Save the nb of sentences parsed (for information and being able to relaunch the parsing at this point)
-            File.WriteAllText(nbOfSentencesParsedFilePath, nbOfSentencesToParse.ToString());
-
-            Console.WriteLine("Building of collocation PMIs done");
-            Console.WriteLine("=====================================");
-
-            sw.Stop();
-            Console.WriteLine("Ellapsed time: {0}", sw.Elapsed.ToString("g"));
+            var ngramFreqBuilder = new NGramFrequencyBuilder(n, Utilities.PathToDownloadDirectory, nbOfSentencesToParse,
+                flushMinFrequency, flushNbOfSentences);
+            ngramFreqBuilder.ComputeNgramsFrequencies();
         }
 
         private static void PostProcessFrequencyDictionary()
@@ -220,7 +112,7 @@ namespace Test
             Console.WriteLine("Started writing frequency list");
 
             var result = new FrequencyResults();
-            var frequencyDirectory = PathToDownloadDirectory + "frequencies";
+            var frequencyDirectory = Utilities.PathToDownloadDirectory + "frequencies";
             var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
 
             result.LoadFrequencyDictionary(frequencyFilePath, minFrequency);
@@ -261,7 +153,7 @@ namespace Test
                 foreach (var token in grp.Value.Where(wf => wf.IsFirstTokenInSentence))
                 {
                     // Find other tokens which are not the first in the sentence and increase their frequency respectively to their frequency
-                    var otherTokens = list.Where(v => v.Word == token.Word || v.Word == LowerCaseFirstLetter(token.Word)).ToList();
+                    var otherTokens = list.Where(v => v.Word == token.Word || v.Word == Utilities.LowerCaseFirstLetter(token.Word)).ToList();
                     if (otherTokens.Any())
                     {
                         var totalGrpFreq = otherTokens.Sum(t => t.Frequency);
@@ -298,66 +190,6 @@ namespace Test
             Console.WriteLine("Finished writing ferquency list");
         }
 
-        private static string LowerCaseFirstLetter(string word)
-        {
-            if (string.IsNullOrEmpty(word))
-            {
-                return "";
-            }
-            return char.ToLower(word[0]) + word.Substring(1);
-        }
-
-        /// <summary>
-        /// Replace all invalid filename characters by '_'
-        /// </summary>
-        private static string SanitizeFileName(string fileName)
-        {
-            var sb = new StringBuilder();
-            foreach (var c in fileName)
-            {
-                sb.Append(Path.GetInvalidFileNameChars().Contains(c) ? '_' : c);
-            }
-            return sb.ToString();
-        }
-
-        private static void ExtractTokensFromTxtFiles(Func<string[], int, bool> tokensProcessor,  int nbOfSentencesToParse,
-            int nbOfSentencesToSkip = 0)
-        {
-            var relevantDirectories = Directory.GetDirectories(PathToDownloadDirectory)
-                .Where(dir => Regex.IsMatch(dir, "enwiki-latest-pages-meta-current"));
-            var sentenceDetector = new EnglishMaximumEntropySentenceDetector(PathToProject + "Data/EnglishSD.nbin");
-            var tokenizer = new EnglishRuleBasedTokenizer(false);
-
-            var sentenceCounter = 0;
-            foreach (var directory in relevantDirectories.OrderBy(d => d)) // ordering is important here to be able to relaunch the parsing from anywhere
-            {
-                var txtFiles = Directory.GetFiles(directory);
-                foreach (var txtFile in txtFiles.OrderBy(f => f)) // ordering is important here to be able to relaunch the parsing from anywhere
-                {
-                    var sentences = File.ReadAllLines(txtFile)
-                        .Where(l => !string.IsNullOrEmpty(l))
-                        .SelectMany(l => sentenceDetector.SentenceDetect(l))
-                        .ToList();
-                    foreach (var sentence in sentences)
-                    {
-                        // Increase counter
-                        sentenceCounter++;
-                        if (sentenceCounter > nbOfSentencesToParse)
-                        {
-                            return;
-                        }
-                        if (sentenceCounter <= nbOfSentencesToSkip)
-                        {
-                            continue;
-                        }
-
-                        var tokens = tokenizer.Tokenize(sentence);
-                        var success = tokensProcessor(tokens, sentenceCounter);
-                    }
-                }
-                Console.WriteLine("Done parsing sentences in directory: '{0}'", directory);
-            }
-        }
 
         private static void BuildFrequencyDictionary()
         {
@@ -367,7 +199,7 @@ namespace Test
             var nbOfSentencesToParse = int.Parse(Console.ReadLine());
 
             var nbOfAlreadyParsedSentences = 0;
-            var frequencyDirectory = PathToDownloadDirectory + "frequencies";
+            var frequencyDirectory = Utilities.PathToDownloadDirectory + "frequencies";
             if (!Directory.Exists(frequencyDirectory))
             {
                 Directory.CreateDirectory(frequencyDirectory);
@@ -408,7 +240,7 @@ namespace Test
                 }
                 return true;
             };
-            ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
+            Utilities.ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
 
             // Load previous frequency dictionaries that were already computed
             if (parsingResumed)
@@ -440,7 +272,7 @@ namespace Test
             Console.WriteLine("Extraction of text from dump files started");
             var wikiMarkupCleaner = new WikiMarkupCleaner();
 
-            var relevantFilePaths = Directory.GetFiles(PathToDownloadDirectory)
+            var relevantFilePaths = Directory.GetFiles(Utilities.PathToDownloadDirectory)
                 .Where(f => Regex.IsMatch(f, "enwiki-latest-pages-meta-current\\d") && Path.GetExtension(f) == ".bz2")
                 .ToList();
             Predicate<string> pageFilterer = s => s.Contains(":");
@@ -451,7 +283,7 @@ namespace Test
                 var fileName = Path.GetFileNameWithoutExtension(relevantFilePath);
 
                 // We extract the articles in the directory with the same name
-                var directoryPath = PathToDownloadDirectory + fileName;
+                var directoryPath = Utilities.PathToDownloadDirectory + fileName;
                 if (!Directory.Exists(directoryPath))
                 {
                     Directory.CreateDirectory(directoryPath);
@@ -463,7 +295,7 @@ namespace Test
                 {
                     try
                     {
-                        var filePath = directoryPath + "/" + SanitizeFileName(next.Title) + ".txt";
+                        var filePath = directoryPath + "/" + Utilities.SanitizeFileName(next.Title) + ".txt";
                         // Cleanup article content
                         var cleanedText = wikiMarkupCleaner.CleanArticleContent(next.Text);
 
@@ -495,8 +327,8 @@ namespace Test
         {
             Console.WriteLine("Downloading of dump files started");
 
-            Console.WriteLine("Downloads are stored in directory '{0}'", PathToDownloadDirectory);
-            var dumpDownloader = new DumpDownloader(PathToDownloadDirectory);
+            Console.WriteLine("Downloads are stored in directory '{0}'", Utilities.PathToDownloadDirectory);
+            var dumpDownloader = new DumpDownloader(Utilities.PathToDownloadDirectory);
             var dumpFilePaths = dumpDownloader.DownloadLatestFiles("wiki", "en");
             Console.WriteLine("Downloaded files:");
             foreach (var dumpFilePath in dumpFilePaths)
@@ -518,7 +350,7 @@ namespace Test
             var page = XmlDumpFileReader.GetPage(title);
             var wikiMarkupCleaner = new WikiMarkupCleaner();
 
-            var pathToDirectory = PathToProject + "Data/CleanTextCompare/";
+            var pathToDirectory = Utilities.PathToProject + "Data/CleanTextCompare/";
             if (!Directory.Exists(pathToDirectory))
             {
                 Directory.CreateDirectory(pathToDirectory);

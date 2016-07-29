@@ -54,10 +54,14 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="MoreLinq\MoreEnumerable.Batch.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Src\CollocationResults.cs" />
+    <Compile Include="Src\NGramFrequenciesResults.cs" />
     <Compile Include="Src\FrequencyResults.cs" />
+    <Compile Include="Src\NGramFrequencyBuilder.cs" />
+    <Compile Include="Src\NgramPmisBuilder.cs" />
+    <Compile Include="Src\Utilities.cs" />
     <Compile Include="Src\WordOccurrence.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -5,25 +5,28 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using MoreLinq;
 
 namespace Test.Src
 {
-    public class CollocationResults
+    public class NGramFrequenciesResults
     {
         private const char Separator = '|';
 
         // Properties ---------------
 
+        public int N { get; set; }
         public long TotalWordCounter { get; set; }
         public Dictionary<string, long> WordFrequencies { get; set; }
         public long TotalNgramsCounter { get; set; }
-        public Dictionary<Tuple<string, string>, long> NGramsFrequencies { get; set; }
+        public Dictionary<string[], long> NGramsFrequencies { get; set; }
 
         // Constructor --------------
 
-        public CollocationResults()
+        public NGramFrequenciesResults(int n)
         {
-            this.NGramsFrequencies = new Dictionary<Tuple<string, string>, long>();
+            this.N = n;
+            this.NGramsFrequencies = new Dictionary<string[], long>(new NgramEqualityComparer());
             this.WordFrequencies = new Dictionary<string, long>();
         }
 
@@ -42,7 +45,7 @@ namespace Test.Src
             }
         }
 
-        private void AddNGram(Tuple<string, string> ngram, long frequency = 1, bool increaseTotalNGramCounter = true)
+        private void AddNGram(string[] ngram, long frequency = 1, bool increaseTotalNGramCounter = true)
         {
             if (increaseTotalNGramCounter)
             {
@@ -61,8 +64,8 @@ namespace Test.Src
 
         public void AddBigrams(string[] sentence)
         {
-            // Don't take into account sentences with less than 2 characters
-            if (sentence.Length < 2)
+            // Don't take into account sentences with less than N characters (no N-gram possible)
+            if (sentence.Length < N)
             {
                 return;
             }
@@ -73,36 +76,36 @@ namespace Test.Src
                 IncreaseWordFreq(token);
             }
 
-            // Browse all the bigrams of the sentence
-            for (var i = 0; i < sentence.Length - 2; i++)
+            // Browse all the n-grams of the sentence
+            for (var i = 0; i < sentence.Length - N; i++)
             {
-                var current = sentence[i];
-                var next = sentence[i+1];
-                var ngram = new Tuple<string, string>(current, next);
-
+                var ngram = sentence.Skip(i).Take(N).ToArray();
                 AddNGram(ngram);
             }
         }
 
-        public List<Tuple<string, string, double>> ComputePMIs(int collocationFrequencyFilter)
+        public List<Tuple<string[], double>> ComputePMIs(int collocationFrequencyFilter)
         {
-            var results = new List<Tuple<string, string, double>>();
+            var results = new List<Tuple<string[], double>>();
 
             foreach (var tupleFrequency in NGramsFrequencies.Where(tup => collocationFrequencyFilter <= tup.Value))
             {
-                var freq1 = WordFrequencies[tupleFrequency.Key.Item1];
-                var freq2 = WordFrequencies[tupleFrequency.Key.Item2];
-                var pmi = ComputePMI(freq1, freq2, TotalWordCounter, tupleFrequency.Value, TotalNgramsCounter);
-                results.Add(new Tuple<string, string, double>(tupleFrequency.Key.Item1, tupleFrequency.Key.Item2, pmi));
+                var counts = tupleFrequency.Key.Select(k => WordFrequencies[k]).ToArray();
+                var pmi = ComputePMI(counts, TotalWordCounter, tupleFrequency.Value, TotalNgramsCounter);
+                results.Add(new Tuple<string[], double>(tupleFrequency.Key, pmi));
             }
 
             return results;
         }
 
-        private static double ComputePMI(long word1Count, long word2Count, long nbOfWords, long bigramCount, long nbOfBigrams)
+        private static double ComputePMI(long[] wordCounts, long nbOfWords, long ngramCount, long nbOfBigrams)
         {
-            return
-                Math.Log10(((double) bigramCount/nbOfBigrams)/((double) (word1Count*word2Count)/(nbOfWords*nbOfWords)));
+            double denominator = 1;
+            for (int i = 0; i < wordCounts.Length; i++)
+            {
+                denominator *= (double)wordCounts[i]/nbOfWords;
+            }
+            return Math.Log10(((double) ngramCount/nbOfBigrams)/denominator);
         }
 
         public void SaveNGramsFrequencies(string filePath, int frequencyFilter)
@@ -110,7 +113,7 @@ namespace Test.Src
             var lines = this.NGramsFrequencies
                 .Where(tup => frequencyFilter <= tup.Value)
                 .OrderByDescending(tup => tup.Value)
-                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Item1, ent.Key.Item2, ent.Value));
+                .Select(ent => string.Format("{0}|{1}", string.Join(Separator.ToString(), ent.Key), ent.Value));
             using (var writer = new StreamWriter(File.OpenWrite(filePath)))
             {
                 foreach (var line in lines)
@@ -123,8 +126,8 @@ namespace Test.Src
         public void SaveCollocationPMIs(string filePath, int collocationFrequencyFilter)
         {
             var lines = ComputePMIs(collocationFrequencyFilter)
-                .OrderByDescending(tup => tup.Item3)
-                .Select(tup => string.Format("{0}|{1}|{2}", tup.Item1, tup.Item2, tup.Item3));
+                .OrderByDescending(tup => tup.Item2)
+                .Select(tup => string.Format("{0}|{1}", string.Join(Separator.ToString(), tup.Item1), tup.Item2));
             File.WriteAllLines(filePath, lines);
         }
 
@@ -151,7 +154,7 @@ namespace Test.Src
                 foreach (var freq in NGramsFrequencies)
                 {
                     var sb = new StringBuilder();
-                    sb.Append(freq.Key.Item1).Append(Separator).Append(freq.Key.Item2).Append(Separator).Append(freq.Value);
+                    sb.Append(string.Join(Separator.ToString(), freq.Key)).Append(Separator).Append(freq.Value);
                     writer.WriteLine(sb.ToString());
                 }
             }
@@ -193,10 +196,10 @@ namespace Test.Src
                     }
 
                     var parts = line.Split(Separator);
-                    if (parts.Length == 3)
+                    if (parts.Length == (N + 1))
                     {
-                        var ngram = new Tuple<string, string>(parts[0], parts[1]);
-                        AddNGram(ngram, long.Parse(parts[2]), false);
+                        var ngram = parts.Take(parts.Length - 1).ToArray();
+                        AddNGram(ngram, long.Parse(parts.Last()), false);
                     }
                 }
             }
@@ -204,12 +207,54 @@ namespace Test.Src
 
         public int FlushNgramsWithFrequencyBelow(int minFrequency)
         {
-            var entriesToRemove = NGramsFrequencies.Where(ent => ent.Value < minFrequency).ToList();
-            foreach (var entryToRemove in entriesToRemove)
+            var count = 0;
+            var batches = NGramsFrequencies
+                .Where(ent => ent.Value < minFrequency)
+                .Select(ent => ent.Key)
+                .Batch(1000)
+                .ToList();
+            foreach (var batch in batches)
             {
-                NGramsFrequencies.Remove(entryToRemove.Key);
+                foreach (var entryToRemove in batch)
+                {
+                    NGramsFrequencies.Remove(entryToRemove);
+                    count++;
+                }
             }
-            return entriesToRemove.Count;
+            
+            return count;
+        }
+    }
+
+    public class NgramEqualityComparer : IEqualityComparer<string[]>
+    {
+        public bool Equals(string[] x, string[] y)
+        {
+            if (x.Length != y.Length)
+            {
+                return false;
+            }
+            for (int i = 0; i < x.Length; i++)
+            {
+                if (x[i] != y[i])
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        public int GetHashCode(string[] obj)
+        {
+            int result = 17;
+            for (int i = 0; i < obj.Length; i++)
+            {
+                unchecked
+                {
+                    result = result * 23 + obj[i].GetHashCode();
+                }
+            }
+            return result;
         }
     }
 }
