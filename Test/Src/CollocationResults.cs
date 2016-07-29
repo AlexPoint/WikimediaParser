@@ -105,7 +105,13 @@ namespace Test.Src
                 .Where(tup => frequencyFilter <= tup.Value)
                 .OrderByDescending(tup => tup.Value)
                 .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Item1, ent.Key.Item2, ent.Value));
-            File.WriteAllLines(filePath, lines);
+            using (var writer = new StreamWriter(File.OpenWrite(filePath)))
+            {
+                foreach (var line in lines)
+                {
+                    writer.WriteLine(line);
+                }
+            }
         }
 
         public void SaveCollocationPMIs(string filePath, int collocationFrequencyFilter)
@@ -134,25 +140,35 @@ namespace Test.Src
         public void LoadResults(string wordFrequenciesFilePath, string ngramsFrequenciesFilePath)
         {
             // Load word frequencies
-            var wordFreqLines = File.ReadAllLines(wordFrequenciesFilePath);
-            foreach (var line in wordFreqLines)
+            using (var reader = new StreamReader(File.OpenRead(wordFrequenciesFilePath)))
             {
-                var parts = line.Split('|');
-                if (parts.Length == 2)
+                var line = reader.ReadLine();
+                while (line != null)
                 {
-                    IncreaseWordFreq(parts[0], long.Parse(parts[1]));
+                    var parts = line.Split('|');
+                    if (parts.Length == 2)
+                    {
+                        IncreaseWordFreq(parts[0], long.Parse(parts[1]));
+                    }
+
+                    line = reader.ReadLine();
                 }
             }
 
             // Load ngrams frequencies
-            var ngramsFreqLines = File.ReadAllLines(ngramsFrequenciesFilePath);
-            foreach (var line in ngramsFreqLines)
+            using (var reader = new StreamReader(File.OpenRead(ngramsFrequenciesFilePath)))
             {
-                var parts = line.Split('|');
-                if (parts.Length == 3)
+                var line = reader.ReadLine();
+                while (line != null)
                 {
-                    var ngram = new Tuple<string, string>(parts[0], parts[1]);
-                    AddNGram(ngram, long.Parse(parts[2]));
+                    var parts = line.Split('|');
+                    if (parts.Length == 3)
+                    {
+                        var ngram = new Tuple<string, string>(parts[0], parts[1]);
+                        AddNGram(ngram, long.Parse(parts[2]));
+                    }
+
+                    line = reader.ReadLine();
                 }
             }
         }

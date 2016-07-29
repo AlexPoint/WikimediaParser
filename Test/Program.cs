@@ -81,6 +81,7 @@ namespace Test
             Console.WriteLine("Filter collocations with frequency less than:");
             var collocationFrequencyFilter = int.Parse(Console.ReadLine());
 
+            var sw = Stopwatch.StartNew();
             Console.WriteLine("Start post processing ngrams frequencies");
 
             // Load results
@@ -95,14 +96,13 @@ namespace Test
             var ngramFreqFilePath = collocationDirectory + "/ngrams-frequencies.txt";
             result.LoadResults(wordFrequencyFilePath, ngramFreqFilePath);
 
-            // Save ngrams frequencies (for debug)
-            result.SaveNGramsFrequencies(ngramFreqFilePath, 0);
-
             // Save frequency files on disk
             var ngramsPmisFilePath = collocationDirectory + "/ngrams-pmis.txt";
             result.SaveCollocationPMIs(ngramsPmisFilePath, collocationFrequencyFilter);
 
             Console.WriteLine("Done post processing ngrams frequencies");
+            sw.Stop();
+            Console.WriteLine("Executed in {0}", sw.Elapsed.ToString("g"));
         }
 
         private static void BuildNgramsFrequencies()
