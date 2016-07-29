@@ -137,24 +137,56 @@ namespace Test
                 }
             }
 
+            // Final frequency list
+            Console.WriteLine("Load frequency list");
+            var frequencyDirectory = PathToDownloadDirectory + "frequencies";
+            var frequencyListPath = frequencyDirectory + "/frequency-list - 150m.txt";
+            var freqDic = new Dictionary<string, long>();
+            using (var reader = new StreamReader(File.OpenRead(frequencyListPath)))
+            {
+                var line = reader.ReadLine();
+                while (line != null)
+                {
+                    var parts = line.Split('|');
+                    if (parts.Length == 2)
+                    {
+                        freqDic.Add(parts[0], long.Parse(parts[1]));
+                    }
+
+                    line = reader.ReadLine();
+                }
+            }
+
             var sw = Stopwatch.StartNew();
             Console.WriteLine("Building of collocation PMIs started");
 
             // Tokenize the sentences and compute the frequencies
             Func<string[], bool> extractTokens = tokens =>
             {
+                // Lowercase the first token if necessary
+                if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0]) && char.IsLetter(tokens[0][0]))
+                {
+                    long freq;
+                    long lcFreq;
+                    if (freqDic.TryGetValue(tokens[0], out freq) && freqDic.TryGetValue(LowerCaseFirstLetter(tokens[0]), out lcFreq) && lcFreq > freq)
+                    {
+                        tokens[0] = LowerCaseFirstLetter(tokens[0]);
+                    }
+                }
                 result.AddBigrams(tokens);
                 return true;
             };
             ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
 
             // Load previous frequency dictionaries that were already computed
+            Console.WriteLine("Loading previous results");
             if (parsingResumed)
             {
                 result.LoadResults(wordFrequencyFilePath, ngramFreqFilePath);
             }
 
             // Save results on disk for later
+            Console.WriteLine("Saving results on disk");
             result.SaveResults(wordFrequencyFilePath, ngramFreqFilePath);
             // Save the nb of sentences parsed (for information and being able to relaunch the parsing at this point)
             File.WriteAllText(nbOfSentencesParsedFilePath, nbOfSentencesToParse.ToString());

@@ -125,16 +125,28 @@ namespace Test.Src
         public void SaveResults(string wordFrequenciesFilePath, string ngramsFrequenciesFilePath)
         {
             // Persist word frequencies
-            var lines = WordFrequencies
-                .OrderByDescending(ent => ent.Value)
-                .Select(ent => string.Format("{0}|{1}", ent.Key, ent.Value));
-            File.WriteAllLines(wordFrequenciesFilePath, lines);
-
+            using (var writer = new StreamWriter(wordFrequenciesFilePath))
+            {
+                var lines = WordFrequencies
+                    .OrderByDescending(ent => ent.Value)
+                    .Select(ent => string.Format("{0}|{1}", ent.Key, ent.Value));
+                foreach (var line in lines)
+                {
+                    writer.WriteLine(line);
+                }
+            }
+            
             // Persist ngrams frequencies
-            var nGramLines = NGramsFrequencies
-                .OrderByDescending(ent => ent.Value)
-                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Item1, ent.Key.Item2, ent.Value));
-            File.WriteAllLines(ngramsFrequenciesFilePath, nGramLines);
+            using (var writer = new StreamWriter(ngramsFrequenciesFilePath))
+            {
+                var lines = NGramsFrequencies
+                    .OrderByDescending(ent => ent.Value)
+                    .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Item1, ent.Key.Item2, ent.Value));
+                foreach (var line in lines)
+                {
+                    writer.WriteLine(line);
+                }
+            }
         }
 
         public void LoadResults(string wordFrequenciesFilePath, string ngramsFrequenciesFilePath)
