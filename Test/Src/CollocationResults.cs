@@ -1,15 +1,17 @@
 ﻿using System;
+using System.CodeDom;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Test.Src
 {
     public class CollocationResults
     {
+        private const char Separator = '|';
+
         // Properties ---------------
 
         public long TotalWordCounter { get; set; }
@@ -40,9 +42,13 @@ namespace Test.Src
             }
         }
 
-        private void AddNGram(Tuple<string, string> ngram, long frequency = 1)
+        private void AddNGram(Tuple<string, string> ngram, long frequency = 1, bool increaseTotalNGramCounter = true)
         {
-            TotalNgramsCounter += frequency;
+            if (increaseTotalNGramCounter)
+            {
+                TotalNgramsCounter += frequency; 
+            }
+
             if (NGramsFrequencies.ContainsKey(ngram))
             {
                 NGramsFrequencies[ngram]++;
@@ -129,7 +135,7 @@ namespace Test.Src
             {
                 var lines = WordFrequencies
                     .OrderByDescending(ent => ent.Value)
-                    .Select(ent => string.Format("{0}|{1}", ent.Key, ent.Value));
+                    .Select(ent => string.Format("{0}{1}{2}", ent.Key, Separator, ent.Value));
                 foreach (var line in lines)
                 {
                     writer.WriteLine(line);
@@ -139,12 +145,14 @@ namespace Test.Src
             // Persist ngrams frequencies
             using (var writer = new StreamWriter(ngramsFrequenciesFilePath))
             {
-                var lines = NGramsFrequencies
-                    .OrderByDescending(ent => ent.Value)
-                    .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Item1, ent.Key.Item2, ent.Value));
-                foreach (var line in lines)
+                // First line is the ngrams counter
+                writer.WriteLine(TotalNgramsCounter);
+                // Don't try to order NGramsFrequencies since it causes OutOfMemoryExceptions (ordering a dictionary creates an ordered copy in all cases)
+                foreach (var freq in NGramsFrequencies)
                 {
-                    writer.WriteLine(line);
+                    var sb = new StringBuilder();
+                    sb.Append(freq.Key.Item1).Append(Separator).Append(freq.Key.Item2).Append(Separator).Append(freq.Value);
+                    writer.WriteLine(sb.ToString());
                 }
             }
         }
@@ -154,35 +162,54 @@ namespace Test.Src
             // Load word frequencies
             using (var reader = new StreamReader(File.OpenRead(wordFrequenciesFilePath)))
             {
-                var line = reader.ReadLine();
-                while (line != null)
+                while (true)
                 {
-                    var parts = line.Split('|');
+                    var line = reader.ReadLine();
+                    if (line == null)
+                    {
+                        break;
+                    }
+
+                    var parts = line.Split(Separator);
                     if (parts.Length == 2)
                     {
                         IncreaseWordFreq(parts[0], long.Parse(parts[1]));
                     }
-
-                    line = reader.ReadLine();
                 }
             }
 
             // Load ngrams frequencies
             using (var reader = new StreamReader(File.OpenRead(ngramsFrequenciesFilePath)))
             {
-                var line = reader.ReadLine();
-                while (line != null)
+                var firstLine = reader.ReadLine();
+                var ngramCounter = int.Parse(firstLine);
+                TotalNgramsCounter += ngramCounter;
+                while (true)
                 {
-                    var parts = line.Split('|');
+                    var line = reader.ReadLine();
+                    if (line == null)
+                    {
+                        break;
+                    }
+
+                    var parts = line.Split(Separator);
                     if (parts.Length == 3)
                     {
                         var ngram = new Tuple<string, string>(parts[0], parts[1]);
-                        AddNGram(ngram, long.Parse(parts[2]));
+                        AddNGram(ngram, long.Parse(parts[2]), false);
                     }
-
-                    line = reader.ReadLine();
                 }
             }
+        }
+
+        public int FlushNgramsWithFrequencyBelow(int minFrequency)
+        {
+            var entriesToRemove = NGramsFrequencies.Where(ent => ent.Value < minFrequency).ToList();
+            foreach (var entryToRemove in entriesToRemove)
+            {
+                NGramsFrequencies.Remove(entryToRemove.Key);
+            }
+            return entriesToRemove.Count;
         }
     }
 }

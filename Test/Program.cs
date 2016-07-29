@@ -111,6 +111,11 @@ namespace Test
 
             Console.WriteLine("How many sentences do you want to parse?");
             var nbOfSentencesToParse = int.Parse(Console.ReadLine());
+
+            Console.WriteLine("Flush the ngrams with frequency below:");
+            var flushMinFrequency = int.Parse(Console.ReadLine());
+            Console.WriteLine("Flush ngrams with low frequency every x sentence. x?");
+            var flushNbOfSentences = int.Parse(Console.ReadLine());
             
             var nbOfAlreadyParsedSentences = 0;
             var collocationDirectory = PathToDownloadDirectory + "collocation";
@@ -161,8 +166,14 @@ namespace Test
             Console.WriteLine("Building of collocation PMIs started");
 
             // Tokenize the sentences and compute the frequencies
-            Func<string[], bool> extractTokens = tokens =>
+            Func<string[], int, bool> extractTokens = (tokens, sentenceCounter) =>
             {
+                if (sentenceCounter%flushNbOfSentences == 0)
+                {
+                    var nbOfFlushedNGrams = result.FlushNgramsWithFrequencyBelow(flushMinFrequency);
+                    Console.WriteLine("Flushed {0} ngrams with frequency below {1}", nbOfFlushedNGrams, flushMinFrequency);
+                }
+
                 // Lowercase the first token if necessary
                 if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0]) && char.IsLetter(tokens[0][0]))
                 {
@@ -177,6 +188,9 @@ namespace Test
                 return true;
             };
             ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
+
+            // Final flushing
+            Console.WriteLine("Flushed {0} ngrams with frequency below {1}", result.FlushNgramsWithFrequencyBelow(flushMinFrequency), flushMinFrequency);
 
             // Load previous frequency dictionaries that were already computed
             Console.WriteLine("Loading previous results");
@@ -306,7 +320,7 @@ namespace Test
             return sb.ToString();
         }
 
-        private static void ExtractTokensFromTxtFiles(Func<string[], bool> tokensProcessor, int nbOfSentencesToParse,
+        private static void ExtractTokensFromTxtFiles(Func<string[], int, bool> tokensProcessor,  int nbOfSentencesToParse,
             int nbOfSentencesToSkip = 0)
         {
             var relevantDirectories = Directory.GetDirectories(PathToDownloadDirectory)
@@ -338,7 +352,7 @@ namespace Test
                         }
 
                         var tokens = tokenizer.Tokenize(sentence);
-                        var success = tokensProcessor(tokens);
+                        var success = tokensProcessor(tokens, sentenceCounter);
                     }
                 }
                 Console.WriteLine("Done parsing sentences in directory: '{0}'", directory);
@@ -381,7 +395,7 @@ namespace Test
             Console.WriteLine("Building of frequency dictionary started");
 
             // Tokenize the sentences and compute the frequencies
-            Func<string[], bool> extractTokens = tokens =>
+            Func<string[], int, bool> extractTokens = (tokens, sentenceCounter) =>
             {
                 for (var i = 0; i < tokens.Length; i++)
                 {
