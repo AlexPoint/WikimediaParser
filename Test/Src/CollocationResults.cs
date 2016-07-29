@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -13,21 +14,22 @@ namespace Test.Src
 
         public long TotalWordCounter { get; set; }
         public Dictionary<string, long> WordFrequencies { get; set; }
-        public Dictionary<string, TopWordAndCounter> Bigrams { get; set; }
+        public long TotalNgramsCounter { get; set; }
+        public Dictionary<Tuple<string, string>, long> NGramsFrequencies { get; set; }
 
         // Constructor --------------
 
         public CollocationResults()
         {
-            this.Bigrams = new Dictionary<string, TopWordAndCounter>();
+            this.NGramsFrequencies = new Dictionary<Tuple<string, string>, long>();
             this.WordFrequencies = new Dictionary<string, long>();
         }
 
         // Methods ------------------
 
-        private void IncreaseWordFreq(string word)
+        private void IncreaseWordFreq(string word, long frequency = 1)
         {
-            TotalWordCounter++;
+            TotalWordCounter += frequency;
             if (WordFrequencies.ContainsKey(word))
             {
                 WordFrequencies[word]++;
@@ -35,6 +37,19 @@ namespace Test.Src
             else
             {
                 WordFrequencies.Add(word, 1);
+            }
+        }
+
+        private void AddNGram(Tuple<string, string> ngram, long frequency = 1)
+        {
+            TotalNgramsCounter += frequency;
+            if (NGramsFrequencies.ContainsKey(ngram))
+            {
+                NGramsFrequencies[ngram]++;
+            }
+            else
+            {
+                NGramsFrequencies.Add(ngram, frequency);
             }
         }
 
@@ -57,28 +72,9 @@ namespace Test.Src
             {
                 var current = sentence[i];
                 var next = sentence[i+1];
+                var ngram = new Tuple<string, string>(current, next);
 
-                if (Bigrams.ContainsKey(next))
-                {
-                    Bigrams[next].CounterWhenAfterAnotherWord++;
-                    var existingDic = Bigrams[next].PreviousWordsAndFrequencies;
-                    if (existingDic.ContainsKey(current))
-                    {
-                        existingDic[current]++;
-                    }
-                    else
-                    {
-                        existingDic.Add(current, 1);
-                    }
-                }
-                else
-                {
-                    Bigrams.Add(next, new TopWordAndCounter()
-                    {
-                        CounterWhenAfterAnotherWord = 1,
-                        PreviousWordsAndFrequencies = new Dictionary<string, long>() {{ current, 1}}
-                    });
-                }
+                AddNGram(ngram);
             }
         }
 
@@ -86,26 +82,30 @@ namespace Test.Src
         {
             var results = new List<Tuple<string, string, double>>();
 
-            foreach (var bigram in Bigrams)
+            foreach (var tupleFrequency in NGramsFrequencies.Where(tup => collocationFrequencyFilter <= tup.Value))
             {
-                var topWordAndCounter = bigram.Value;
-                foreach (var previousWord in topWordAndCounter.PreviousWordsAndFrequencies)
-                {
-                    if (collocationFrequencyFilter <= previousWord.Value)
-                    {
-                        var nbOfX = WordFrequencies[bigram.Key];
-                        var pmi = ComputePMI(previousWord.Value, topWordAndCounter.CounterWhenAfterAnotherWord, nbOfX, TotalWordCounter);
-                        results.Add(new Tuple<string, string, double>(previousWord.Key, bigram.Key, pmi)); 
-                    }
-                }
+                var freq1 = WordFrequencies[tupleFrequency.Key.Item1];
+                var freq2 = WordFrequencies[tupleFrequency.Key.Item2];
+                var pmi = ComputePMI(freq1, freq2, TotalWordCounter, tupleFrequency.Value, TotalNgramsCounter);
+                results.Add(new Tuple<string, string, double>(tupleFrequency.Key.Item1, tupleFrequency.Key.Item2, pmi));
             }
 
             return results;
         }
 
-        private static double ComputePMI(long nbOfXAfterY, long nbOfXAfterAnything, long nbOfX, long nbOfWords)
+        private static double ComputePMI(long word1Count, long word2Count, long nbOfWords, long bigramCount, long nbOfBigrams)
         {
-            return Math.Log10(((double)nbOfXAfterY / nbOfXAfterAnything) / ((double)nbOfX / nbOfWords));
+            return
+                Math.Log10(((double) bigramCount/nbOfBigrams)/((double) (word1Count*word2Count)/(nbOfWords*nbOfWords)));
+        }
+
+        public void SaveNGramsFrequencies(string filePath, int frequencyFilter)
+        {
+            var lines = this.NGramsFrequencies
+                .Where(tup => frequencyFilter <= tup.Value)
+                .OrderByDescending(tup => tup.Value)
+                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Item1, ent.Key.Item2, ent.Value));
+            File.WriteAllLines(filePath, lines);
         }
 
         public void SaveCollocationPMIs(string filePath, int collocationFrequencyFilter)
@@ -115,21 +115,46 @@ namespace Test.Src
                 .Select(tup => string.Format("{0}|{1}|{2}", tup.Item1, tup.Item2, tup.Item3));
             File.WriteAllLines(filePath, lines);
         }
-    }
 
-    public class TopWordAndCounter
-    {
-        // Properties --------------
-
-        public long CounterWhenAfterAnotherWord { get;set; }
-        public Dictionary<string, long> PreviousWordsAndFrequencies { get; set; }
-
-
-        // Constructors ------------
-
-        public TopWordAndCounter()
+        public void SaveResults(string wordFrequenciesFilePath, string ngramsFrequenciesFilePath)
         {
-            PreviousWordsAndFrequencies = new Dictionary<string, long>();
+            // Persist word frequencies
+            var lines = WordFrequencies
+                .OrderByDescending(ent => ent.Value)
+                .Select(ent => string.Format("{0}|{1}", ent.Key, ent.Value));
+            File.WriteAllLines(wordFrequenciesFilePath, lines);
+
+            // Persist ngrams frequencies
+            var nGramLines = NGramsFrequencies
+                .OrderByDescending(ent => ent.Value)
+                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Item1, ent.Key.Item2, ent.Value));
+            File.WriteAllLines(ngramsFrequenciesFilePath, nGramLines);
+        }
+
+        public void LoadResults(string wordFrequenciesFilePath, string ngramsFrequenciesFilePath)
+        {
+            // Load word frequencies
+            var wordFreqLines = File.ReadAllLines(wordFrequenciesFilePath);
+            foreach (var line in wordFreqLines)
+            {
+                var parts = line.Split('|');
+                if (parts.Length == 2)
+                {
+                    IncreaseWordFreq(parts[0], long.Parse(parts[1]));
+                }
+            }
+
+            // Load ngrams frequencies
+            var ngramsFreqLines = File.ReadAllLines(ngramsFrequenciesFilePath);
+            foreach (var line in ngramsFreqLines)
+            {
+                var parts = line.Split('|');
+                if (parts.Length == 3)
+                {
+                    var ngram = new Tuple<string, string>(parts[0], parts[1]);
+                    AddNGram(ngram, long.Parse(parts[2]));
+                }
+            }
         }
     }
 }

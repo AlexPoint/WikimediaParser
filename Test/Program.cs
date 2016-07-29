@@ -25,7 +25,8 @@ namespace Test
             {2, "Extract text from dump files"},
             {3, "Compute word frequencies"},
             {4, "Post process frequencies"},
-            {5, "Compute bigram PMIs"}
+            {5, "Compute bigram frequencies"},
+            {6, "Post process bigram frequencies"}
         };
 
         static void Main(string[] args)
@@ -58,7 +59,10 @@ namespace Test
                         PostProcessFrequencyDictionary();
                         break;
                     case 5:
-                        BuildBigramsPMIs();
+                        BuildNgramsFrequencies();
+                        break;
+                    case 6:
+                        PostProcessBiGramsFrequencies();
                         break;
                     default:
                         Console.WriteLine("This action is not supported");
@@ -72,25 +76,52 @@ namespace Test
 
         private static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
 
-        private static void BuildBigramsPMIs()
+        private static void PostProcessBiGramsFrequencies()
+        {
+            Console.WriteLine("Filter collocations with frequency less than:");
+            var collocationFrequencyFilter = int.Parse(Console.ReadLine());
+
+            Console.WriteLine("Start post processing ngrams frequencies");
+
+            // Load results
+            var result = new CollocationResults();
+
+            var collocationDirectory = PathToDownloadDirectory + "collocation";
+            if (!Directory.Exists(collocationDirectory))
+            {
+                Directory.CreateDirectory(collocationDirectory);
+            }
+            var wordFrequencyFilePath = collocationDirectory + "/word-frequencies.txt";
+            var ngramFreqFilePath = collocationDirectory + "/ngrams-frequencies.txt";
+            result.LoadResults(wordFrequencyFilePath, ngramFreqFilePath);
+
+            // Save ngrams frequencies (for debug)
+            result.SaveNGramsFrequencies(ngramFreqFilePath, 0);
+
+            // Save frequency files on disk
+            var ngramsPmisFilePath = collocationDirectory + "/ngrams-pmis.txt";
+            result.SaveCollocationPMIs(ngramsPmisFilePath, collocationFrequencyFilter);
+
+            Console.WriteLine("Done post processing ngrams frequencies");
+        }
+
+        private static void BuildNgramsFrequencies()
         {
             var result = new CollocationResults();
 
             Console.WriteLine("How many sentences do you want to parse?");
             var nbOfSentencesToParse = int.Parse(Console.ReadLine());
-            Console.WriteLine("Filter collocations with frequency less than:");
-            var collocationFrequencyFilter = int.Parse(Console.ReadLine());
-
+            
             var nbOfAlreadyParsedSentences = 0;
-            var frequencyDirectory = PathToDownloadDirectory + "collocation";
-            if (!Directory.Exists(frequencyDirectory))
+            var collocationDirectory = PathToDownloadDirectory + "collocation";
+            if (!Directory.Exists(collocationDirectory))
             {
-                Directory.CreateDirectory(frequencyDirectory);
+                Directory.CreateDirectory(collocationDirectory);
             }
-            var frequencyFilePath = frequencyDirectory + "/frequencies.txt";
-            var excludedFrequencyFilePath = frequencyDirectory + "/excluded-frequencies.txt";
-            var nbOfSentencesParsedFilePath = frequencyDirectory + "/nbOfSentencesParsed.txt";
-            /*var parsingResumed = false;
+            var wordFrequencyFilePath = collocationDirectory + "/word-frequencies.txt";
+            var ngramFreqFilePath = collocationDirectory + "/ngrams-frequencies.txt";
+            var nbOfSentencesParsedFilePath = collocationDirectory + "/nbOfSentencesParsed.txt";
+            var parsingResumed = false;
             if (File.Exists(nbOfSentencesParsedFilePath))
             {
                 int nbOfSentencesParsed;
@@ -104,7 +135,7 @@ namespace Test
                         parsingResumed = true;
                     }
                 }
-            }*/
+            }
 
             var sw = Stopwatch.StartNew();
             Console.WriteLine("Building of collocation PMIs started");
@@ -118,15 +149,13 @@ namespace Test
             ExtractTokensFromTxtFiles(extractTokens, nbOfSentencesToParse, nbOfAlreadyParsedSentences);
 
             // Load previous frequency dictionaries that were already computed
-            /*if (parsingResumed)
+            if (parsingResumed)
             {
-                result.LoadFrequencyDictionary(frequencyFilePath);
-                result.LoadFrequencyDictionary(excludedFrequencyFilePath);
-            }*/
+                result.LoadResults(wordFrequencyFilePath, ngramFreqFilePath);
+            }
 
-            // Save frequency files on disk
-            result.SaveCollocationPMIs(frequencyFilePath, collocationFrequencyFilter);
-
+            // Save results on disk for later
+            result.SaveResults(wordFrequencyFilePath, ngramFreqFilePath);
             // Save the nb of sentences parsed (for information and being able to relaunch the parsing at this point)
             File.WriteAllText(nbOfSentencesParsedFilePath, nbOfSentencesToParse.ToString());
 

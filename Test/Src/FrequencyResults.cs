@@ -95,6 +95,7 @@ namespace Test.Src
                     }
                 }
             }
+            Console.WriteLine("Loaded {0} word occurrences", lines.Count());
         }
 
         /*public void WriteFiles(string keptWordsFilePath, string excludedWordsFilePath, string mergedWordsFilePath, string notFoundWordsFilePath)
