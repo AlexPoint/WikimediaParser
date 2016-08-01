@@ -221,6 +221,8 @@ namespace Test.Src
                     count++;
                 }
             }
+
+            Console.WriteLine("NGramFrequencies dictionary size: {0}", NGramsFrequencies.Count);
             
             return count;
         }

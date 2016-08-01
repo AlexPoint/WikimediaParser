@@ -25,8 +25,9 @@ namespace Test
             {2, "Extract text from dump files"},
             {3, "Compute word frequencies"},
             {4, "Post process word frequencies"},
-            {5, "Compute ngrams frequencies"},
-            {6, "Post process ngram frequencies"}
+            {5, "Compute ngram frequencies"},
+            {6, "Post process ngram frequencies"},
+            {7, "Compute all ngrams frequencies"}
         };
 
         static void Main(string[] args)
@@ -64,6 +65,9 @@ namespace Test
                     case 6:
                         PostProcessBiGramsFrequencies();
                         break;
+                    case 7:
+                        ComputeAllNGramsFrequencies();
+                        break;
                     default:
                         Console.WriteLine("This action is not supported");
                         break;
@@ -84,6 +88,34 @@ namespace Test
 
             var builder = new NgramPmisBuilder(n, collocationFrequencyFilter);
             builder.ComputePmis();
+        }
+
+        private static void ComputeAllNGramsFrequencies()
+        {
+            Console.WriteLine("For which values of 'n'?");
+            Console.WriteLine("Min value of n?");
+            var min = int.Parse(Console.ReadLine());
+            Console.WriteLine("Max value of n?");
+            var max = int.Parse(Console.ReadLine());
+
+            Console.WriteLine("How many sentences do you want to parse?");
+            var nbOfSentencesToParse = int.Parse(Console.ReadLine());
+
+            Console.WriteLine("Flush the ngrams with frequency below:");
+            var flushMinFrequency = int.Parse(Console.ReadLine());
+            Console.WriteLine("Flush ngrams with low frequency every x sentence. x?");
+            var flushNbOfSentences = int.Parse(Console.ReadLine());
+
+            for (var i = min; i <= max; i++)
+            {
+                Console.WriteLine("n = {0}", i);
+                var ngramFreqBuilder = new NGramFrequencyBuilder(i, Utilities.PathToDownloadDirectory, nbOfSentencesToParse,
+                flushMinFrequency, flushNbOfSentences);
+                ngramFreqBuilder.ComputeNgramsFrequencies();
+
+                Console.WriteLine("==============");
+                Console.WriteLine();
+            }
         }
 
         private static void ComputeNgramsFrequencies()
