@@ -62,6 +62,7 @@
     <Compile Include="Src\NGramFrequencyBuilder.cs" />
     <Compile Include="Src\NgramPmisBuilder.cs" />
     <Compile Include="Src\Utilities.cs" />
+    <Compile Include="Src\WordDictionary.cs" />
     <Compile Include="Src\WordOccurrence.cs" />
   </ItemGroup>
   <ItemGroup>

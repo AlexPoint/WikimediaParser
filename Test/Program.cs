@@ -152,7 +152,7 @@ namespace Test
             var groupedTokens = new Dictionary<string, List<WordOccurrenceAndFrequency>>();
             foreach (var wordFrequency in result.WordFrequencies)
             {
-                var lcToken = wordFrequency.Key.Word.ToLowerInvariant();
+                var lcToken = wordFrequency.Key.Word.Token.ToLowerInvariant();
                 if (groupedTokens.ContainsKey(lcToken))
                 {
                     groupedTokens[lcToken].Add(new WordOccurrenceAndFrequency()
@@ -259,7 +259,7 @@ namespace Test
             Console.WriteLine("Building of frequency dictionary started");
 
             // Tokenize the sentences and compute the frequencies
-            Func<string[], int, bool> extractTokens = (tokens, sentenceCounter) =>
+            Func<Word[], int, bool> extractTokens = (tokens, sentenceCounter) =>
             {
                 for (var i = 0; i < tokens.Length; i++)
                 {

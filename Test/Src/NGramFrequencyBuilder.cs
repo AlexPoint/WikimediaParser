@@ -67,7 +67,7 @@ namespace Test.Src
             Console.WriteLine("Load frequency list");
             var frequencyDirectory = PathToDownloadDirectory + "frequencies";
             var frequencyListPath = frequencyDirectory + "/frequency-list - 150m.txt";
-            var freqDic = new Dictionary<string, long>();
+            var freqDic = new Dictionary<Word, long>();
             using (var reader = new StreamReader(File.OpenRead(frequencyListPath)))
             {
                 var line = reader.ReadLine();
@@ -76,7 +76,7 @@ namespace Test.Src
                     var parts = line.Split('|');
                     if (parts.Length == 2)
                     {
-                        freqDic.Add(string.Intern(parts[0]), long.Parse(parts[1]));
+                        freqDic.Add(WordDictionary.GetOrCreate(parts[0]), long.Parse(parts[1]));
                     }
 
                     line = reader.ReadLine();
@@ -87,7 +87,7 @@ namespace Test.Src
             Console.WriteLine("Start computing {0}-grams frequencies", N);
 
             // Tokenize the sentences and compute the frequencies
-            Func<string[], int, bool> extractTokens = (tokens, sentenceCounter) =>
+            Func<Word[], int, bool> extractTokens = (tokens, sentenceCounter) =>
             {
                 if (sentenceCounter % FlushNbOfSentences == 0)
                 {
@@ -96,7 +96,7 @@ namespace Test.Src
                 }
 
                 // Lowercase the first token if necessary
-                if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0]) && char.IsLetter(tokens[0][0]))
+                if (tokens.Length > 0 && !string.IsNullOrEmpty(tokens[0].Token) && char.IsLetter(tokens[0].Token[0]))
                 {
                     long freq;
                     long lcFreq;

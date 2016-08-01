@@ -17,22 +17,22 @@ namespace Test.Src
 
         public int N { get; set; }
         public long TotalWordCounter { get; set; }
-        public Dictionary<string, long> WordFrequencies { get; set; }
+        public Dictionary<Word, long> WordFrequencies { get; set; }
         public long TotalNgramsCounter { get; set; }
-        public Dictionary<string[], long> NGramsFrequencies { get; set; }
+        public Dictionary<Word[], long> NGramsFrequencies { get; set; }
 
         // Constructor --------------
 
         public NGramFrequenciesResults(int n)
         {
             this.N = n;
-            this.NGramsFrequencies = new Dictionary<string[], long>(new NgramEqualityComparer());
-            this.WordFrequencies = new Dictionary<string, long>();
+            this.NGramsFrequencies = new Dictionary<Word[], long>(new NgramEqualityComparer());
+            this.WordFrequencies = new Dictionary<Word, long>();
         }
 
         // Methods ------------------
 
-        private void IncreaseWordFreq(string word, long frequency = 1)
+        private void IncreaseWordFreq(Word word, long frequency = 1)
         {
             TotalWordCounter += frequency;
             if (WordFrequencies.ContainsKey(word))
@@ -45,7 +45,7 @@ namespace Test.Src
             }
         }
 
-        private void AddNGram(string[] ngram, long frequency = 1, bool increaseTotalNGramCounter = true)
+        private void AddNGram(Word[] ngram, long frequency = 1, bool increaseTotalNGramCounter = true)
         {
             if (increaseTotalNGramCounter)
             {
@@ -62,7 +62,7 @@ namespace Test.Src
             }
         }
 
-        public void AddBigrams(string[] sentence)
+        public void AddBigrams(Word[] sentence)
         {
             // Don't take into account sentences with less than N characters (no N-gram possible)
             if (sentence.Length < N)
@@ -84,15 +84,15 @@ namespace Test.Src
             }
         }
 
-        public List<Tuple<string[], double>> ComputePMIs(int collocationFrequencyFilter)
+        public List<Tuple<Word[], double>> ComputePMIs(int collocationFrequencyFilter)
         {
-            var results = new List<Tuple<string[], double>>();
+            var results = new List<Tuple<Word[], double>>();
 
             foreach (var tupleFrequency in NGramsFrequencies.Where(tup => collocationFrequencyFilter <= tup.Value))
             {
                 var counts = tupleFrequency.Key.Select(k => WordFrequencies[k]).ToArray();
                 var pmi = ComputePMI(counts, TotalWordCounter, tupleFrequency.Value, TotalNgramsCounter);
-                results.Add(new Tuple<string[], double>(tupleFrequency.Key, pmi));
+                results.Add(new Tuple<Word[], double>(tupleFrequency.Key, pmi));
             }
 
             return results;
@@ -113,7 +113,7 @@ namespace Test.Src
             var lines = this.NGramsFrequencies
                 .Where(tup => frequencyFilter <= tup.Value)
                 .OrderByDescending(tup => tup.Value)
-                .Select(ent => string.Format("{0}|{1}", string.Join(Separator.ToString(), ent.Key), ent.Value));
+                .Select(ent => string.Format("{0}|{1}", string.Join(Separator.ToString(), ent.Key.Select(w => w.Token)), ent.Value));
             using (var writer = new StreamWriter(File.OpenWrite(filePath)))
             {
                 foreach (var line in lines)
@@ -127,7 +127,7 @@ namespace Test.Src
         {
             var lines = ComputePMIs(collocationFrequencyFilter)
                 .OrderByDescending(tup => tup.Item2)
-                .Select(tup => string.Format("{0}|{1}", string.Join(Separator.ToString(), tup.Item1), tup.Item2));
+                .Select(tup => string.Format("{0}|{1}", string.Join(Separator.ToString(), tup.Item1.Select(w => w.Token)), tup.Item2));
             File.WriteAllLines(filePath, lines);
         }
 
@@ -154,7 +154,7 @@ namespace Test.Src
                 foreach (var freq in NGramsFrequencies)
                 {
                     var sb = new StringBuilder();
-                    sb.Append(string.Join(Separator.ToString(), freq.Key)).Append(Separator).Append(freq.Value);
+                    sb.Append(string.Join(Separator.ToString(), freq.Key.Select(w => w.Token))).Append(Separator).Append(freq.Value);
                     writer.WriteLine(sb.ToString());
                 }
             }
@@ -176,7 +176,7 @@ namespace Test.Src
                     var parts = line.Split(Separator);
                     if (parts.Length == 2)
                     {
-                        IncreaseWordFreq(parts[0], long.Parse(parts[1]));
+                        IncreaseWordFreq(WordDictionary.GetOrCreate(parts[0]), long.Parse(parts[1]));
                     }
                 }
             }
@@ -198,7 +198,7 @@ namespace Test.Src
                     var parts = line.Split(Separator);
                     if (parts.Length == (N + 1))
                     {
-                        var ngram = parts.Take(parts.Length - 1).ToArray();
+                        var ngram = parts.Take(parts.Length - 1).Select(WordDictionary.GetOrCreate).ToArray();
                         AddNGram(ngram, long.Parse(parts.Last()), false);
                     }
                 }
@@ -228,9 +228,9 @@ namespace Test.Src
         }
     }
 
-    public class NgramEqualityComparer : IEqualityComparer<string[]>
+    public class NgramEqualityComparer : IEqualityComparer<Word[]>
     {
-        public bool Equals(string[] x, string[] y)
+        public bool Equals(Word[] x, Word[] y)
         {
             if (x.Length != y.Length)
             {
@@ -246,7 +246,7 @@ namespace Test.Src
             return true;
         }
 
-        public int GetHashCode(string[] obj)
+        public int GetHashCode(Word[] obj)
         {
             int result = 17;
             for (int i = 0; i < obj.Length; i++)

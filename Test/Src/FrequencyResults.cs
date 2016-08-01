@@ -18,7 +18,7 @@ namespace Test.Src
             var isTokenValid = true;
             var hasEnglishLetter = false;
             // Only a-z, A-Z, - and . are allowed
-            foreach (var c in token.Word)
+            foreach (var c in token.Word.Token)
             {
                 if ((65 <= c && c <= 90) || (97 <= c && c <= 122))
                 {
@@ -79,7 +79,7 @@ namespace Test.Src
                 {
                     var wordOccurrence = new WordOccurrence()
                     {
-                        Word = parts[0],
+                        Word = WordDictionary.GetOrCreate(parts[0]),
                         IsFirstTokenInSentence = bool.Parse(parts[1])
                     };
                     var freq = long.Parse(parts[2]);

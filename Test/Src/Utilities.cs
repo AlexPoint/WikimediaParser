@@ -19,9 +19,17 @@ namespace Test.Src
         {
             if (string.IsNullOrEmpty(word))
             {
-                return "";
+                return null;
             }
             return char.ToLower(word[0]) + word.Substring(1);
+        }
+        public static Word LowerCaseFirstLetter(Word word)
+        {
+            if (word == null || string.IsNullOrEmpty(word.Token))
+            {
+                return null;
+            }
+            return WordDictionary.GetOrCreate(char.ToLower(word.Token[0]) + word.Token.Substring(1));
         }
 
         /// <summary>
@@ -37,7 +45,7 @@ namespace Test.Src
             return sb.ToString();
         }
 
-        public static void ExtractTokensFromTxtFiles(Func<string[], int, bool> tokensProcessor, int nbOfSentencesToParse,
+        public static void ExtractTokensFromTxtFiles(Func<Word[], int, bool> tokensProcessor, int nbOfSentencesToParse,
             int nbOfSentencesToSkip = 0)
         {
             var relevantDirectories = Directory.GetDirectories(PathToDownloadDirectory)
@@ -69,7 +77,7 @@ namespace Test.Src
                         }
 
                         var tokens = tokenizer.Tokenize(sentence)
-                            .Select(string.Intern) // intern strings to avoid huge consumption of memory
+                            .Select(WordDictionary.GetOrCreate) // intern strings to avoid huge consumption of memory
                             .ToArray();
                         var success = tokensProcessor(tokens, sentenceCounter);
                     }

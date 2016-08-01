@@ -8,7 +8,7 @@ namespace Test.Src
 {
     public class WordOccurrence
     {
-        public string Word { get; set; }
+        public Word Word { get; set; }
         public bool IsFirstTokenInSentence { get; set; }
 
         public override string ToString()
