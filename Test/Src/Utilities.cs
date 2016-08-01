@@ -68,7 +68,9 @@ namespace Test.Src
                             continue;
                         }
 
-                        var tokens = tokenizer.Tokenize(sentence);
+                        var tokens = tokenizer.Tokenize(sentence)
+                            .Select(string.Intern) // intern strings to avoid huge consumption of memory
+                            .ToArray();
                         var success = tokensProcessor(tokens, sentenceCounter);
                     }
                 }

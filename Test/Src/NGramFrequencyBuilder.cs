@@ -76,7 +76,7 @@ namespace Test.Src
                     var parts = line.Split('|');
                     if (parts.Length == 2)
                     {
-                        freqDic.Add(parts[0], long.Parse(parts[1]));
+                        freqDic.Add(string.Intern(parts[0]), long.Parse(parts[1]));
                     }
 
                     line = reader.ReadLine();
