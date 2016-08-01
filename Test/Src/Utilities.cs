@@ -15,11 +15,14 @@ namespace Test.Src
         public static readonly string PathToProject = Environment.CurrentDirectory + "\\..\\..\\";
         public static readonly string PathToDownloadDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData) + "\\Wikimedia\\Downloads\\";
 
+        public static char CsvSeparator = '|';
+        public static string Csv2ndLevelSeparator = "|||";
+
         public static string LowerCaseFirstLetter(string word)
         {
             if (string.IsNullOrEmpty(word))
             {
-                return "";
+                return null;
             }
             return char.ToLower(word[0]) + word.Substring(1);
         }

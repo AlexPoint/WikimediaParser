@@ -207,8 +207,8 @@ namespace Test
             // Post processed frequencies for debug
             var postProcessedFrequencyFilePath = frequencyDirectory + "/post-processed-frequencies.txt";
             var ppLines = mergedTokens
-                .Select(ent => string.Join("|||",
-                            ent.Value.Select(wf => string.Format("{0}|{1}|{2}", wf.Word, wf.IsFirstTokenInSentence, wf.Frequency))));
+                .Select(ent => string.Join(Utilities.Csv2ndLevelSeparator,
+                            ent.Value.Select(wf => string.Format("{0}{3}{1}{3}{2}", wf.Word, wf.IsFirstTokenInSentence, wf.Frequency, Utilities.CsvSeparator))));
             File.WriteAllLines(postProcessedFrequencyFilePath, ppLines);
 
             // Final frequency list
@@ -216,7 +216,7 @@ namespace Test
             var flLines = mergedTokens
                 .SelectMany(ent => ent.Value)
                 .OrderByDescending(wf => wf.Frequency)
-                .Select(wf => string.Format("{0}|{1}", wf.Word, wf.Frequency));
+                .Select(wf => string.Format("{0}{2}{1}", wf.Word, wf.Frequency, Utilities.CsvSeparator));
             File.WriteAllLines(frequencyListPath, flLines);
 
             Console.WriteLine("Finished writing ferquency list");

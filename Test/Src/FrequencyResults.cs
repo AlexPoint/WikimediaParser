@@ -57,7 +57,7 @@ namespace Test.Src
         {
             var lines = WordFrequencies
                 .OrderByDescending(d => d.Value)
-                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Word, ent.Key.IsFirstTokenInSentence, ent.Value));
+                .Select(ent => string.Format("{0}{3}{1}{3}{2}", ent.Key.Word, ent.Key.IsFirstTokenInSentence, ent.Value, Utilities.CsvSeparator));
             File.WriteAllLines(filePath, lines);
         }
 
@@ -65,7 +65,7 @@ namespace Test.Src
         {
             var lines = ExcludedWordFrequencies
                 .OrderByDescending(d => d.Value)
-                .Select(ent => string.Format("{0}|{1}|{2}", ent.Key.Word, ent.Key.IsFirstTokenInSentence, ent.Value));
+                .Select(ent => string.Format("{0}{3}{1}{3}{2}", ent.Key.Word, ent.Key.IsFirstTokenInSentence, ent.Value, Utilities.CsvSeparator));
             File.WriteAllLines(filePath, lines);
         }
 
@@ -74,7 +74,7 @@ namespace Test.Src
             var lines = File.ReadAllLines(filePath);
             foreach (var line in lines)
             {
-                var parts = line.Split('|');
+                var parts = line.Split(Utilities.CsvSeparator);
                 if (parts.Length == 3)
                 {
                     var wordOccurrence = new WordOccurrence()

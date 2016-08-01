@@ -113,7 +113,7 @@ namespace Test.Src
             var lines = this.NGramsFrequencies
                 .Where(tup => frequencyFilter <= tup.Value)
                 .OrderByDescending(tup => tup.Value)
-                .Select(ent => string.Format("{0}|{1}", string.Join(Separator.ToString(), ent.Key), ent.Value));
+                .Select(ent => string.Format("{0}{2}{1}", string.Join(Separator.ToString(), ent.Key), ent.Value, Utilities.CsvSeparator));
             using (var writer = new StreamWriter(File.OpenWrite(filePath)))
             {
                 foreach (var line in lines)
@@ -127,7 +127,7 @@ namespace Test.Src
         {
             var lines = ComputePMIs(collocationFrequencyFilter)
                 .OrderByDescending(tup => tup.Item2)
-                .Select(tup => string.Format("{0}|{1}", string.Join(Separator.ToString(), tup.Item1), tup.Item2));
+                .Select(tup => string.Format("{0}{2}{1}", string.Join(Separator.ToString(), tup.Item1), tup.Item2, Utilities.CsvSeparator));
             File.WriteAllLines(filePath, lines);
         }
 

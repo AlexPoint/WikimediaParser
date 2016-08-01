@@ -73,7 +73,7 @@ namespace Test.Src
                 var line = reader.ReadLine();
                 while (line != null)
                 {
-                    var parts = line.Split('|');
+                    var parts = line.Split(Utilities.CsvSeparator);
                     if (parts.Length == 2)
                     {
                         freqDic.Add(string.Intern(parts[0]), long.Parse(parts[1]));
@@ -100,9 +100,10 @@ namespace Test.Src
                 {
                     long freq;
                     long lcFreq;
-                    if (freqDic.TryGetValue(tokens[0], out freq) && freqDic.TryGetValue(Utilities.LowerCaseFirstLetter(tokens[0]), out lcFreq) && lcFreq > freq)
+                    var lcToken = string.Intern(Utilities.LowerCaseFirstLetter(tokens[0]));
+                    if (freqDic.TryGetValue(tokens[0], out freq) && freqDic.TryGetValue(lcToken, out lcFreq) && lcFreq > freq)
                     {
-                        tokens[0] = Utilities.LowerCaseFirstLetter(tokens[0]);
+                        tokens[0] = lcToken;
                     }
                 }
                 result.AddBigrams(tokens);
