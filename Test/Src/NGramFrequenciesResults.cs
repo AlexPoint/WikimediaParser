@@ -137,7 +137,6 @@ namespace Test.Src
             using (var writer = new StreamWriter(wordFrequenciesFilePath))
             {
                 var lines = WordFrequencies
-                    .OrderByDescending(ent => ent.Value).ThenBy(ent => ent.Key)
                     .Select(ent => string.Format("{0}{1}{2}", ent.Key, Separator, ent.Value));
                 foreach (var line in lines)
                 {
@@ -151,7 +150,7 @@ namespace Test.Src
                 // First line is the ngrams counter
                 writer.WriteLine(TotalNgramsCounter);
                 // Don't try to order NGramsFrequencies since it causes OutOfMemoryExceptions (ordering a dictionary creates an ordered copy in all cases)
-                foreach (var freq in NGramsFrequencies.OrderByDescending(freq => freq.Value).ThenBy(freq => freq.Key[0]).ThenBy(freq => freq.Key[1]))
+                foreach (var freq in NGramsFrequencies)
                 {
                     var sb = new StringBuilder();
                     sb.Append(string.Join(Separator.ToString(), freq.Key)).Append(Separator).Append(freq.Value);
