@@ -224,7 +224,7 @@ namespace Test
             var flLines = mergedTokens
                 .SelectMany(ent => ent.Value)
                 .OrderByDescending(wf => wf.Frequency)
-                .Select(wf => string.Format("{0}|{1}|{2}|{3}|{4}", wf.Word, wf.Frequency, 
+                .Select(wf => string.Format("{0},{1},{2},{3},{4}", wf.Word, wf.Frequency, 
                     char.IsUpper(wf.Word[0]) ? 1 : 0, wf.Word.Any(char.IsUpper) ? 1 : 0, 
                     fleexWords.Contains(wf.Word) ? 1 : 0));
             File.WriteAllLines(frequencyListPath, flLines);
