@@ -211,18 +211,27 @@ namespace Test
                             ent.Value.Select(wf => string.Format("{0}{3}{1}{3}{2}", wf.Word, wf.IsFirstTokenInSentence, wf.Frequency, Utilities.CsvSeparator))));
             File.WriteAllLines(postProcessedFrequencyFilePath, ppLines);
 
+            // Load fleex words
+            var fleexWords = new HashSet<string>();
+            var fleexWordsFile = frequencyDirectory + "/fleex - words.txt";
+            foreach (var word in File.ReadAllLines(fleexWordsFile))
+            {
+                fleexWords.Add(word);
+            }
+
             // Final frequency list
             var frequencyListPath = frequencyDirectory + "/frequency-list.txt";
             var flLines = mergedTokens
                 .SelectMany(ent => ent.Value)
                 .OrderByDescending(wf => wf.Frequency)
-                .Select(wf => string.Format("{0}{2}{1}", wf.Word, wf.Frequency, Utilities.CsvSeparator));
+                .Select(wf => string.Format("{0}|{1}|{2}|{3}|{4}", wf.Word, wf.Frequency, 
+                    char.IsUpper(wf.Word[0]) ? 1 : 0, wf.Word.Any(char.IsUpper) ? 1 : 0, 
+                    fleexWords.Contains(wf.Word) ? 1 : 0));
             File.WriteAllLines(frequencyListPath, flLines);
 
-            Console.WriteLine("Finished writing ferquency list");
+            Console.WriteLine("Finished writing frequency list");
         }
-
-
+        
         private static void BuildFrequencyDictionary()
         {
             var result = new FrequencyResults();
