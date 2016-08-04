@@ -63,7 +63,7 @@ namespace Test
                         ComputeNgramsFrequencies();
                         break;
                     case 6:
-                        PostProcessBiGramsFrequencies();
+                        PostProcessNgramsFrequencies();
                         break;
                     case 7:
                         ComputeAllNGramsFrequencies();
@@ -78,7 +78,7 @@ namespace Test
             Console.ReadKey();
         }
 
-        private static void PostProcessBiGramsFrequencies()
+        private static void PostProcessNgramsFrequencies()
         {
             Console.WriteLine("For which value of 'n'?");
             var n = int.Parse(Console.ReadLine());

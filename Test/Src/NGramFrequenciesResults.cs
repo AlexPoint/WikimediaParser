@@ -1,6 +1,7 @@
 ﻿using System;
 using System.CodeDom;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -84,15 +85,15 @@ namespace Test.Src
             }
         }
 
-        public List<Tuple<string[], double>> ComputePMIs(int collocationFrequencyFilter)
+        public List<Tuple<string[], double, long>> ComputePMIs(int collocationFrequencyFilter)
         {
-            var results = new List<Tuple<string[], double>>();
+            var results = new List<Tuple<string[], double, long>>();
 
             foreach (var tupleFrequency in NGramsFrequencies.Where(tup => collocationFrequencyFilter <= tup.Value))
             {
                 var counts = tupleFrequency.Key.Select(k => WordFrequencies[k]).ToArray();
                 var pmi = ComputePMI(counts, TotalWordCounter, tupleFrequency.Value, TotalNgramsCounter);
-                results.Add(new Tuple<string[], double>(tupleFrequency.Key, pmi));
+                results.Add(new Tuple<string[], double, long>(tupleFrequency.Key, pmi, tupleFrequency.Value));
             }
 
             return results;
@@ -125,9 +126,11 @@ namespace Test.Src
 
         public void SaveCollocationPMIs(string filePath, int collocationFrequencyFilter)
         {
+            const string ngramSeparator = " ";
             var lines = ComputePMIs(collocationFrequencyFilter)
-                .OrderByDescending(tup => tup.Item2)
-                .Select(tup => string.Format("{0}{2}{1}", string.Join(Separator.ToString(), tup.Item1), tup.Item2, Utilities.CsvSeparator));
+                /*.OrderByDescending(tup => tup.Item2)*/
+                .Where(tup => tup.Item1.Length > 0 && tup.Item1[0].Length > 0)
+                .Select(tup => string.Format("{0},{1},{2},{3},{4}", string.Join(ngramSeparator, tup.Item1), tup.Item2.ToString(CultureInfo.InvariantCulture), tup.Item3, char.IsUpper(tup.Item1[0][0]) ? 1 : 0, tup.Item1.Any(p => p.Any(char.IsUpper)) ? 1 : 0));
             File.WriteAllLines(filePath, lines);
         }
 
@@ -184,7 +187,7 @@ namespace Test.Src
             using (var reader = new StreamReader(File.OpenRead(ngramsFrequenciesFilePath)))
             {
                 var firstLine = reader.ReadLine();
-                var ngramCounter = int.Parse(firstLine);
+                var ngramCounter = long.Parse(firstLine);
                 TotalNgramsCounter += ngramCounter;
                 while (true)
                 {
