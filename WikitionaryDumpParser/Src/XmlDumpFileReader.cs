@@ -40,6 +40,9 @@ namespace WikitionaryDumpParser.Src
                     var title = _reader.ReadInnerXml();
                     if (!pageFilterer(title))
                     {
+                        //var ns = _reader.ReadToFollowing("ns");
+                        //var id = _reader.ReadToNextSibling("id");
+
                         var foundRevision = _reader.ReadToNextSibling("revision");
                         if (foundRevision)
                         {

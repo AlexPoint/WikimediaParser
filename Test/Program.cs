@@ -27,7 +27,8 @@ namespace Test
             {4, "Post process word frequencies"},
             {5, "Compute ngram frequencies"},
             {6, "Post process ngram frequencies"},
-            {7, "Compute all ngrams frequencies"}
+            {7, "Compute all ngrams frequencies"},
+            {8, "Parse infoboxes (all articles)"}
         };
 
         static void Main(string[] args)
@@ -68,6 +69,9 @@ namespace Test
                     case 7:
                         ComputeAllNGramsFrequencies();
                         break;
+                    case 8:
+                        ParseInfoboxes();
+                        break;
                     default:
                         Console.WriteLine("This action is not supported");
                         break;
@@ -76,6 +80,27 @@ namespace Test
 
             
             Console.ReadKey();
+        }
+
+        private static void ParseInfoboxes()
+        {
+            var infoboxes = new List<string>();
+
+            var dumpDir = Utilities.PathToDownloadDirectory;
+            var filePath = Directory.EnumerateFiles(dumpDir).FirstOrDefault();
+            if (filePath != null)
+            {
+                var wikiReader = new XmlDumpFileReader(filePath);
+                Predicate<string> pageFilterer = s => s.Contains(":"); // Real Wikipedia pages contains ":" (others are conversations etc.)
+                var page = wikiReader.ReadNext(pageFilterer);
+                while(page != null)
+                {
+                    infoboxes.AddRange(page.GetInfoboxTexts());
+                    page = wikiReader.ReadNext(pageFilterer);
+                }
+            }
+
+            // Persist infoboxes
         }
 
         private static void PostProcessNgramsFrequencies()
