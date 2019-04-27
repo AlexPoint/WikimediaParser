@@ -15,9 +15,7 @@ namespace WikitionaryDumpParser.Src.DbContext
 
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
-            //modelBuilder.Con
             base.OnModelCreating(modelBuilder);
-            // @"Server=.\SQLEXPRESS;Database=SchoolDB;Trusted_Connection=True;"
         }
 
     }

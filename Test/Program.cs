@@ -35,13 +35,6 @@ namespace Test
 
         static void Main(string[] args)
         {
-            //CompareWikiTextAndCleanText("Algorithms_(journal)");
-            using(var sb = new WikiContext())
-            {
-                var count = sb.Infoboxes.Count();
-                Console.WriteLine("{0} infoboxes in db", count);
-            }
-
             Console.WriteLine("Which action do you want to do?");
             foreach (var action in Actions)
             {
@@ -96,9 +89,10 @@ namespace Test
             var infoboxes = new List<Infobox>();
 
             var dumpDir = Utilities.PathToDownloadDirectory;
-            var filePath = Directory.EnumerateFiles(dumpDir).FirstOrDefault();
-            if (filePath != null)
+            foreach(var filePath in Directory.EnumerateFiles(dumpDir))
             {
+                Console.WriteLine("Parsing infoboxes in file {0}", Path.GetFileName(filePath));
+
                 var wikiReader = new XmlDumpFileReader(filePath);
                 Predicate<string> pageFilterer = s => s.Contains(":"); // Real Wikipedia pages contains ":" (others are conversations etc.)
                 var page = wikiReader.ReadNext(pageFilterer);
