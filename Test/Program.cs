@@ -10,7 +10,9 @@ using System.Xml;
 using OpenNLP.Tools.SentenceDetect;
 using OpenNLP.Tools.Tokenize;
 using Test.Src;
+using Test.Src.DbContext;
 using WikitionaryDumpParser.Src;
+using WikitionaryDumpParser.Src.DbContext;
 
 namespace Test
 {
@@ -34,6 +36,11 @@ namespace Test
         static void Main(string[] args)
         {
             //CompareWikiTextAndCleanText("Algorithms_(journal)");
+            using(var sb = new WikiContext())
+            {
+                var count = sb.Infoboxes.Count();
+                Console.WriteLine("{0} infoboxes in db", count);
+            }
 
             Console.WriteLine("Which action do you want to do?");
             foreach (var action in Actions)
@@ -84,7 +91,9 @@ namespace Test
 
         private static void ParseInfoboxes()
         {
-            var infoboxes = new List<string>();
+            var stopwatch = Stopwatch.StartNew();
+
+            var infoboxes = new List<Infobox>();
 
             var dumpDir = Utilities.PathToDownloadDirectory;
             var filePath = Directory.EnumerateFiles(dumpDir).FirstOrDefault();
@@ -95,12 +104,31 @@ namespace Test
                 var page = wikiReader.ReadNext(pageFilterer);
                 while(page != null)
                 {
-                    infoboxes.AddRange(page.GetInfoboxTexts());
+                    var boxes = page.GetInfoboxTexts().Select(s => new Infobox()
+                    {
+                        RawText = s,
+                        PageTitle = page.Title
+                    });
+                    infoboxes.AddRange(boxes);
+
                     page = wikiReader.ReadNext(pageFilterer);
                 }
             }
 
+            stopwatch.Stop();
+            Console.WriteLine("Parsed {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
+            stopwatch.Restart();
+
             // Persist infoboxes
+            using(var db = new WikiContext())
+            {
+                db.Infoboxes.AddRange(infoboxes);
+                db.SaveChanges();
+            }
+
+            stopwatch.Stop();
+            Console.WriteLine("Persisted {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
+
         }
 
         private static void PostProcessNgramsFrequencies()
