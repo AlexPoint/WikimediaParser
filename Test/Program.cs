@@ -84,14 +84,16 @@ namespace Test
 
         private static void ParseInfoboxes()
         {
-            var stopwatch = Stopwatch.StartNew();
-
-            var infoboxes = new List<Infobox>();
+            var generalStopwatch = Stopwatch.StartNew();
 
             var dumpDir = Utilities.PathToDownloadDirectory;
             foreach(var filePath in Directory.EnumerateFiles(dumpDir))
             {
-                Console.WriteLine("Parsing infoboxes in file {0}", Path.GetFileName(filePath));
+                Console.WriteLine("Start parsing infoboxes in file {0}", Path.GetFileName(filePath));
+
+                var stopwatch = Stopwatch.StartNew();
+
+                var infoboxes = new List<Infobox>();
 
                 var wikiReader = new XmlDumpFileReader(filePath);
                 Predicate<string> pageFilterer = s => s.Contains(":"); // Real Wikipedia pages contains ":" (others are conversations etc.)
@@ -107,21 +109,26 @@ namespace Test
 
                     page = wikiReader.ReadNext(pageFilterer);
                 }
+
+                stopwatch.Stop();
+                Console.WriteLine("Parsed {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
+                stopwatch.Restart();
+
+                // Persist infoboxes
+                using (var db = new WikiContext())
+                {
+                    db.Infoboxes.AddRange(infoboxes);
+                    db.SaveChanges();
+                }
+
+                stopwatch.Stop();
+                Console.WriteLine("Persisted {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
+                Console.WriteLine("--");
             }
 
-            stopwatch.Stop();
-            Console.WriteLine("Parsed {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
-            stopwatch.Restart();
 
-            // Persist infoboxes
-            using(var db = new WikiContext())
-            {
-                db.Infoboxes.AddRange(infoboxes);
-                db.SaveChanges();
-            }
-
-            stopwatch.Stop();
-            Console.WriteLine("Persisted {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
+            generalStopwatch.Stop();
+            Console.WriteLine("Total infobox parsing time: {0}", generalStopwatch.Elapsed.ToString());
 
         }
 
