@@ -30,7 +30,9 @@ namespace Test
             {5, "Compute ngram frequencies"},
             {6, "Post process ngram frequencies"},
             {7, "Compute all ngrams frequencies"},
-            {8, "Parse infoboxes (all articles)"}
+            {8, "Parse infoboxes (all English articles)"},
+            {9, "Extract infobox properties"},
+            {10, "Parse company infoboxes"}
         };
 
         static void Main(string[] args)
@@ -69,8 +71,14 @@ namespace Test
                     case 7:
                         ComputeAllNGramsFrequencies();
                         break;
-                    case 8:
+                    /*case 8:
                         ParseInfoboxes();
+                        break;*/
+                    case 9:
+                        ParseInfoboxProperties();
+                        break;
+                    case 10:
+                        WebParseCompanyInfoboxes();
                         break;
                     default:
                         Console.WriteLine("This action is not supported");
@@ -82,7 +90,79 @@ namespace Test
             Console.ReadKey();
         }
 
-        private static void ParseInfoboxes()
+
+        private static void WebParseCompanyInfoboxes()
+        {
+            var stopwatch= Stopwatch.StartNew();
+
+            var webParser = new InfoboxWebParser("https://en.wikipedia.org/w/index.php?title=Special:WhatLinksHere/Template:Infobox_company&limit=500");
+
+            var urls = webParser.GetArticlesUrl();
+            Console.WriteLine("Found {0} articles ({1})", urls.Count, stopwatch.Elapsed.ToString());
+
+            var groups = urls.Select((u, i) => new { Url = u, Index = i }).GroupBy(a => a.Index / 1000).ToList();
+            Console.WriteLine("Start parsing infoboxes for {0} groups of 1000 articles", groups.Count);
+            foreach(var group in groups.Skip(69))
+            {
+                var boxes = new List<ParsedInfobox>();
+                foreach(var url in group)
+                {
+                    boxes.AddRange(webParser.GetArticleInfobox(url.Url));
+                }
+
+                using(var db = new WikiContext())
+                {
+                    db.ParsedInfoboxes.AddRange(boxes);
+                    db.SaveChanges();
+                }
+
+                Console.WriteLine("Group #{0} done", group.Key);
+            }
+
+            Console.Write("Parsed and persisted company infoboxes in {0}", stopwatch.Elapsed.ToString());
+        }
+
+
+        private static void ParseInfoboxProperties()
+        {
+            // We chose the strategy to do as much as possible directly in SQL, performance-wise.
+            // However, we execute queries directly in SQL to limit the overhead of EntityFramework
+            using(var db = new WikiContext())
+            {
+                // Queries can take a long time to run; set the timeout to 6 hours
+                db.Database.CommandTimeout = 6 * 60 * 60;
+
+                var stopwatch = Stopwatch.StartNew();
+
+                // Update the Template Property of the parsed Infoboxes
+                int nbInfoboxTemplatesUpdated = db.Database.ExecuteSqlCommand(@"
+                    UPDATE Infoboxes
+                    SET Template = TRIM(SUBSTRING(RawText, (CHARINDEX('{{Infobox ', RawText) + LEN('{{Infobox')), (CHARINDEX('|', RawText) - LEN('{{Infobox') - 1)))
+                    WHERE RawText like '%{{Infobox%' and RawText like '%|%'");
+                Console.WriteLine("{0} templates were extracted for infoboxes", nbInfoboxTemplatesUpdated);
+
+                // Extract the infoboxes' properties in markup text and create the infoboxes' properties with them
+                int nbOfInfoboxPropertiesCreated = db.Database.ExecuteSqlCommand(@"
+                    INSERT INTO InfoboxProperties (Infobox_Id, RawText)
+                    SELECT Id, value
+                    FROM Infoboxes
+	                    CROSS APPLY string_split(SUBSTRING(RawText, CHARINDEX('|', RawText) + 1, LEN(RawText)), '|')
+                    WHERE RawText like '%{{Infobox%' and RawText like '%|%'
+                    ORDER BY Infoboxes.Id");
+                Console.WriteLine("{0} infobox properties were created", nbOfInfoboxPropertiesCreated);
+
+                // Parse the infoboxes' properties' raw text
+                int nbOfPropertiesUpdated = db.Database.ExecuteSqlCommand(@"
+                    UPDATE InfoboxProperties
+                    SET Key = TRIM(SUBSTRING(RawText, 0, CHARINDEX('='))),
+	                    Value = TRIM(SUBSTRING(RawText, CHARINDEX('='), LEN(RawText))
+                    WHERE RawText like '%=%'");
+                Console.WriteLine("{0} infobox properties have been parsed", nbOfPropertiesUpdated);
+            }
+
+        }
+
+        /*private static void ParseInfoboxes()
         {
             var generalStopwatch = Stopwatch.StartNew();
 
@@ -130,7 +210,7 @@ namespace Test
             generalStopwatch.Stop();
             Console.WriteLine("Total infobox parsing time: {0}", generalStopwatch.Elapsed.ToString());
 
-        }
+        }*/
 
         private static void PostProcessNgramsFrequencies()
         {
