@@ -1,13 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 2013
-VisualStudioVersion = 12.0.40629.0
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.28803.202
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikimediaParser", "WikitionaryParser\WikimediaParser.csproj", "{1BB9819A-D5B8-4344-AB31-4AA384618BF1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", "{AA756458-3ACA-466B-8E61-51811384E3F6}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikimediaDumpParser", "WikitionaryDumpParser\WikimediaDumpParser.csproj", "{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompanyScrapper", "CompanyScrapper\CompanyScrapper.csproj", "{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -37,9 +39,20 @@ Global
 		{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}.Release|Any CPU.Build.0 = Release|Any CPU
 		{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}.Release|x64.ActiveCfg = Release|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Debug|x64.Build.0 = Debug|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Release|x64.ActiveCfg = Release|Any CPU
+		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AE6D7AED-741E-455C-A349-72E9853E1544}
 	EndGlobalSection
 	GlobalSection(Performance) = preSolution
 		HasPerformanceSessions = true
