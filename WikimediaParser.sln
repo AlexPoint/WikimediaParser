@@ -9,7 +9,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikimediaDumpParser", "WikitionaryDumpParser\WikimediaDumpParser.csproj", "{DA637612-4B09-4A6C-8ACE-AA86AD965CE1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CompanyScrapper", "CompanyScrapper\CompanyScrapper.csproj", "{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CompanyScrapper", "CompanyScrapper\CompanyScrapper.csproj", "{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ETL", "ETL\ETL.csproj", "{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -47,6 +49,14 @@ Global
 		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Release|Any CPU.Build.0 = Release|Any CPU
 		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Release|x64.ActiveCfg = Release|Any CPU
 		{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}.Release|x64.Build.0 = Release|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Debug|x64.Build.0 = Debug|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Release|Any CPU.Build.0 = Release|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Release|x64.ActiveCfg = Release|Any CPU
+		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
