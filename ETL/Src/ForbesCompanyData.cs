@@ -6,9 +6,10 @@ namespace ETL.Src
 {
     class ForbesCompanyData
     {
-        public int Position { get; set; }
-        public int Rank { get; set; }
+        public int ID { get; set; }
         public string Name { get; set; }
+        public int Rank { get; set; }
+        public int Position { get; set; }
         public string Uri { get; set; }
         public string ImageUri { get; set; }
         public string Industry { get; set; }
