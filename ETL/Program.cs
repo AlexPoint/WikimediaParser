@@ -16,33 +16,40 @@ namespace ETL
     {
         static void Main(string[] args)
         {
-            //ForbesCsvToRaw();
-            Console.WriteLine("=======================");
-            ForbesRawToCompanyDb();
+            ForbesDataEtl();
         }
 
-        public static void ForbesCsvToRaw()
+        public static void ForbesDataEtl()
         {
             var builder = new ConfigurationBuilder()
-               .SetBasePath(Directory.GetCurrentDirectory())
-               .AddJsonFile("appsettings.json");
-
+              .SetBasePath(Directory.GetCurrentDirectory())
+              .AddJsonFile("appsettings.json");
             IConfiguration config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", true, true)
                 .Build();
+            var connectionString = config["connectionString"];
 
             var timestamp = DateTime.Now.ToString("yyyyMMdd");
+            var dbName = string.Format("tucdb_{0}", timestamp);
 
+            var csvFilePath = "C:/Users/Alex/Documents/Github/WikimediaParser/CompanyScrapper/Results/forbes-top-2000-companies-2018.csv";
+
+            ForbesCsvToRaw(connectionString, dbName, csvFilePath, "dbo.Forbes2018Raw");
+            Console.WriteLine("=======================");
+            ForbesRawToCompanyDb(connectionString, dbName, "dbo.Forbes2018Raw", "dbo.Forbes2018");
+        }
+
+        public static void ForbesCsvToRaw(string connectionString, string dbName, string csvFilePath, string tgtTable)
+        {            
             // Create control flow
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(config["connectionString"]));
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
 
             // Create database
-            var dbName = string.Format("tucdb_{0}", timestamp);
             CreateDatabaseTask.Create(dbName);
 
             // Create table for Forbes 2018 company data
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", config["connectionString"], dbName)));
-            CreateTableTask.Create("dbo.Forbes2018Raw", new List<TableColumn>()
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
+            CreateTableTask.Create(tgtTable, new List<TableColumn>()
             {
                 new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
                 new TableColumn("Name", "nvarchar(max)", allowNulls: false),
@@ -64,7 +71,7 @@ namespace ETL
             });
 
             // Load CSV file into SQL 
-            CSVSource source = new CSVSource("C:/Users/Alex/Documents/Github/WikimediaParser/CompanyScrapper/Results/forbes-top-2000-companies-2018.csv");
+            CSVSource source = new CSVSource(csvFilePath);
             source.Configuration.Delimiter = ";";
 
             RowTransformation<string[], ForbesCompanyData> row = new RowTransformation<string[], ForbesCompanyData>
@@ -88,7 +95,7 @@ namespace ETL
                     Thumbnail = input[15]
                 }
             );
-            DBDestination<ForbesCompanyData> dest = new DBDestination<ForbesCompanyData>("dbo.Forbes2018Raw");
+            DBDestination<ForbesCompanyData> dest = new DBDestination<ForbesCompanyData>(tgtTable);
 
             source.LinkTo(row);
             row.LinkTo(dest);
@@ -96,44 +103,22 @@ namespace ETL
             source.Execute();
             dest.Wait();
 
-            int rowCount = RowCountTask.Count("dbo.Forbes2018Raw").Value;
-            Console.WriteLine("Inserted {0} rows in dbo.Forbes2018Raw", rowCount);
-
-            /*DBSource<MainCompanyInfo> source = new DBSource<MainCompanyInfo>("select * from dbo.Source");
-            RowTransformation<MySimpleRow, MySimpleRow> trans = new RowTransformation<MySimpleRow, MySimpleRow>(
-                myRow => {
-                    myRow.Value += 1;
-                    return myRow;
-                });
-            DBDestination<MainCompanyInfo> dest = new DBDestination<MainCompanyInfo>("dbo.Destination");*/
-
+            int rowCount = RowCountTask.Count(tgtTable).Value;
+            Console.WriteLine("Inserted {0} rows in {1}", rowCount, tgtTable);
         }
 
-        public static void ForbesRawToCompanyDb()
+        public static void ForbesRawToCompanyDb(string connectionString, string dbName, string srcTable, string tgtTable)
         {
-            var targetTableName = "dbo.Forbes2018";
-
-            var builder = new ConfigurationBuilder()
-               .SetBasePath(Directory.GetCurrentDirectory())
-               .AddJsonFile("appsettings.json");
-
-            IConfiguration config = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json", true, true)
-                .Build();
-
-            var timestamp = DateTime.Now.ToString("yyyyMMdd");
-
             // Create control flow
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(config["connectionString"]));
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
 
             // Create database
-            var dbName = string.Format("tucdb_{0}", timestamp);
             CreateDatabaseTask.Create(dbName);
 
             // Create table for Forbes 2018 company data
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", config["connectionString"], dbName)));
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
 
-            CreateTableTask.Create("dbo.Forbes2018", new List<TableColumn>()
+            CreateTableTask.Create(tgtTable, new List<TableColumn>()
             {
                 new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
                 new TableColumn("Name", "nvarchar(max)", allowNulls: false),
@@ -147,20 +132,9 @@ namespace ETL
                 new TableColumn("Assets_2018_mUSD", "decimal", allowNulls: true)
             });
             
-            var source = new DBSource<ForbesCompanyData>("select ID, Name, Rank, Position, Uri, ImageUri, Industry, Country, Revenue, MarketValue, Headquarters, Ceo, Profits, Assets, State, SquareImage, Thumbnail from dbo.Forbes2018Raw");
-
-            /*var rows = new List<ForbesCompanyData>();
-            var dest = new CustomDestination<ForbesCompanyData>(
-                row => {
-                    rows.Add(row);
-                }
-            );
-
-            source.LinkTo(dest);
-            source.Execute();
-            dest.Wait();*/
-
-
+            var source = new DBSource<ForbesCompanyData>(string.Format(@"
+                select ID, Name, Rank, Position, Uri, ImageUri, Industry, Country, Revenue, MarketValue, Headquarters, Ceo, Profits, Assets, State, SquareImage, Thumbnail 
+                from {0}", srcTable));
             RowTransformation<ForbesCompanyData, CompanyData> trans = new RowTransformation<ForbesCompanyData, CompanyData>(
                 myRow => new CompanyData {
                      Name = myRow.Name,
@@ -173,7 +147,7 @@ namespace ETL
                      Ceo_2018 = myRow.Ceo,
                      Headquarters = myRow.Headquarters != myRow.Country ? string.Format("{0}, {1}", myRow.Headquarters, myRow.Country): myRow.Country
                 });
-            DBDestination<CompanyData> dest = new DBDestination<CompanyData>("dbo.Forbes2018");
+            DBDestination<CompanyData> dest = new DBDestination<CompanyData>(tgtTable);
 
             source.LinkTo(trans);
             trans.LinkTo(dest);
@@ -181,8 +155,8 @@ namespace ETL
             source.Execute();
             dest.Wait();
 
-            int rowCount = RowCountTask.Count(targetTableName).Value;
-            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, targetTableName);
+            int rowCount = RowCountTask.Count(tgtTable).Value;
+            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
         }
 
     }
