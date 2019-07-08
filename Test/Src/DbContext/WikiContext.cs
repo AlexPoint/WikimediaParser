@@ -16,6 +16,8 @@ namespace WikitionaryDumpParser.Src.DbContext
         public DbSet<Test.Src.DbContext.InfoboxProperty> InfoboxProperties { get; set; }*/
         public DbSet<ParsedInfobox> ParsedInfoboxes { get; set; }
 
+        public DbSet<RawDumpParsedInfobox>RawDumpParsedInfoboxes { get; set; }
+
         protected override void OnModelCreating(DbModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);

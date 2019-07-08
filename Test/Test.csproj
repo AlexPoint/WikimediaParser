@@ -104,6 +104,10 @@
     <Compile Include="Migrations\201904292101353_AddParsedInfoboxesTable.Designer.cs">
       <DependentUpon>201904292101353_AddParsedInfoboxesTable.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201907082023043_AddRawDumpParsedInfoboxesTable.cs" />
+    <Compile Include="Migrations\201907082023043_AddRawDumpParsedInfoboxesTable.Designer.cs">
+      <DependentUpon>201907082023043_AddRawDumpParsedInfoboxesTable.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="MoreLinq\MoreEnumerable.Batch.cs" />
     <Compile Include="Program.cs" />
@@ -146,6 +150,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\201904292101353_AddParsedInfoboxesTable.resx">
       <DependentUpon>201904292101353_AddParsedInfoboxesTable.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201907082023043_AddRawDumpParsedInfoboxesTable.resx">
+      <DependentUpon>201907082023043_AddRawDumpParsedInfoboxesTable.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -7,6 +7,14 @@ using System.Threading.Tasks;
 
 namespace Test.Src
 {
+    public class RawDumpParsedInfobox
+    {
+        [Key]
+        public int Id { get; set; }
+        public string PageTitle { get; set; }
+        public string Markdown { get; set; }
+    }
+
     public class ParsedInfobox
     {
         [Key]

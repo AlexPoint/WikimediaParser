@@ -18,11 +18,12 @@ namespace WikitionaryDumpParser.Src
 
         // Public method --------------------------------------
 
-        public List<string> GetInfoboxTexts()
+        public List<string> GetInfoboxTexts(string infoboxType = "")
         {
             var infoboxes = new List<string>();
 
-            var infoboxRegex = new Regex("{{Infobox", RegexOptions.Multiline | RegexOptions.IgnoreCase);
+            var infoboxRegex = new Regex("{{Infobox\\s" + infoboxType, 
+                RegexOptions.Multiline | RegexOptions.IgnoreCase);
 
             var matches = infoboxRegex.Matches(Text);
             for(var i = 0; i < matches.Count; i++)

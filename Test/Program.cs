@@ -30,9 +30,9 @@ namespace Test
             {5, "Compute ngram frequencies"},
             {6, "Post process ngram frequencies"},
             {7, "Compute all ngrams frequencies"},
-            {8, "Parse infoboxes (all English articles)"},
+            {8, "Parse conpany infoboxes (all English articles - dump)"},
             {9, "Extract infobox properties"},
-            {10, "Parse company infoboxes"}
+            {10, "Parse company infoboxes (web)"}
         };
 
         static void Main(string[] args)
@@ -71,9 +71,9 @@ namespace Test
                     case 7:
                         ComputeAllNGramsFrequencies();
                         break;
-                    /*case 8:
-                        ParseInfoboxes();
-                        break;*/
+                    case 8:
+                        ParseCompanyInfoboxesInDumps();
+                        break;
                     case 9:
                         ParseInfoboxProperties();
                         break;
@@ -85,9 +85,57 @@ namespace Test
                         break;
                 }
             }
-
-            
+                        
             Console.ReadKey();
+        }
+
+        private static void ParseCompanyInfoboxesInDumps()
+        {
+            var generalStopwatch = Stopwatch.StartNew();
+
+            var dumpDir = Utilities.PathToDownloadDirectory;
+            foreach (var filePath in Directory.EnumerateFiles(dumpDir))
+            {
+                Console.WriteLine("Start parsing infoboxes in file {0}", Path.GetFileName(filePath));
+                var stopwatch = Stopwatch.StartNew();
+
+                var infoboxes = new List<RawDumpParsedInfobox>();
+
+                var wikiReader = new XmlDumpFileReader(filePath);
+                Predicate<string> pageFilterer = s => s.Contains(":"); // Real Wikipedia pages contains ":" (others are conversations etc.)
+                var page = wikiReader.ReadNext(pageFilterer);
+                while (page != null)
+                {
+                    var boxes = page.GetInfoboxTexts("company").Select(s => new RawDumpParsedInfobox()
+                    {
+                        Markdown = s,
+                        PageTitle = page.Title
+                    });
+                    infoboxes.AddRange(boxes);
+
+                    page = wikiReader.ReadNext(pageFilterer);
+                }
+
+                stopwatch.Stop();
+                Console.WriteLine("Parsed {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
+                stopwatch.Restart();
+
+                // Persist infoboxes
+                using (var db = new WikiContext())
+                {
+                    db.RawDumpParsedInfoboxes.AddRange(infoboxes);
+                    db.SaveChanges();
+                }
+
+                stopwatch.Stop();
+                Console.WriteLine("Persisted {0} infoboxes in {1}", infoboxes.Count, stopwatch.Elapsed.ToString());
+                Console.WriteLine("--");
+            }
+
+
+            generalStopwatch.Stop();
+            Console.WriteLine("Total infobox parsing time: {0}", generalStopwatch.Elapsed.ToString());
+
         }
 
 
