@@ -112,6 +112,10 @@
     <Compile Include="Migrations\201907110846256_AddRawInfoboxPropertiesTable.Designer.cs">
       <DependentUpon>201907110846256_AddRawInfoboxPropertiesTable.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201907110934402_AddReferenceToInfoboxIdInProperties.cs" />
+    <Compile Include="Migrations\201907110934402_AddReferenceToInfoboxIdInProperties.Designer.cs">
+      <DependentUpon>201907110934402_AddReferenceToInfoboxIdInProperties.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="MoreLinq\MoreEnumerable.Batch.cs" />
     <Compile Include="Program.cs" />
@@ -161,6 +165,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\201907110846256_AddRawInfoboxPropertiesTable.resx">
       <DependentUpon>201907110846256_AddRawInfoboxPropertiesTable.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201907110934402_AddReferenceToInfoboxIdInProperties.resx">
+      <DependentUpon>201907110934402_AddReferenceToInfoboxIdInProperties.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

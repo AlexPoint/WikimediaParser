@@ -104,15 +104,20 @@ namespace Test
 
                 while (infoboxes.Any())
                 {
+                    if (index % 10 == 0)
+                    {
+                        Console.WriteLine("Start parsing batch #{0}", index);
+                    }
+
                     foreach (var infobox in infoboxes)
                     {
-                        var parts = infobox.Markdown.Split(new string[] { Environment.NewLine + "|", "\n|" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                        var parts = infobox.Markdown.Split(new string[] { "|\n", "\n|" }, StringSplitOptions.RemoveEmptyEntries).ToList();
                         var properties = parts.Where(line => line.Contains("="))
                             .Select(line => line.Split(new char[] { '=' }, 2))
                             .Select(tup => new RawInfoboxProperty
                             {
-                                Key = tup.First(),
-                                Value = tup.Last(),
+                                Key = tup.First().Trim(),
+                                Value = tup.Last().Trim(),
                                 PageTitle = infobox.PageTitle,
                                 InfoboxId = infobox.Id
                             })
