@@ -24,18 +24,23 @@ namespace Test
 
         private static readonly Dictionary<int, string> Actions = new Dictionary<int, string>()
         {
+            // Downloading dump files from wikipedia servers and extracting basic information
             {1, "Download dump file"},
             {2, "Extract text from dump files"},
+            // Functions for computing ngrams and their frequencies
             {3, "Compute word frequencies"},
             {4, "Post process word frequencies"},
             {5, "Compute ngram frequencies"},
             {6, "Post process ngram frequencies"},
             {7, "Compute all ngrams frequencies"},
-            {8, "Parse conpany infoboxes (all English articles - dump)"},
-            {9, "Extract infobox properties"},
-            {10, "Parse company infoboxes (web)"},
-            {11, "Process company infoboxes"},
-            {12, "Write infobox properties to CSV"}
+            // Steps for extracting infoboxes information from wikipedia html
+            // -> html is generated from the wiki markdown so parsing directly from markdown is preferable
+            {8, "Extract infobox properties"},
+            {9, "Parse company infoboxes (web)"},
+            // Steps for extracting infoboxes information from wiki dumps
+            {20, "Parse company infoboxes (all English articles - from dumps 1/3)"},
+            {21, "Process company infoboxes (from dumps 2/3)"},
+            {22, "Write infobox properties to CSV (from dumps 3/3)"}
         };
 
         static void Main(string[] args)
@@ -75,18 +80,18 @@ namespace Test
                         ComputeAllNGramsFrequencies();
                         break;
                     case 8:
-                        ParseCompanyInfoboxesInDumps();
-                        break;
-                    case 9:
                         ParseInfoboxProperties();
                         break;
-                    case 10:
+                    case 9:
                         WebParseCompanyInfoboxes();
                         break;
-                    case 11:
+                    case 20:
+                        ParseCompanyInfoboxesInDumps();
+                        break;
+                    case 21:
                         ProcessCompanyInfoboxes();
                         break;
-                    case 12:
+                    case 22:
                         WriteInfoboxPropertiesToCsv();
                         break;
                     default:
@@ -99,6 +104,12 @@ namespace Test
             Console.ReadKey();
         }
 
+        /// <summary>
+        /// Extracted from wikipedia dumps (step 3/3).
+        /// Write the infobox properties to a CSV file for easy consumption.
+        /// TODO: this step could be removed by moving the execution of the dump parsing directly in the ETL project.
+        /// </summary>
+        /// <param name="delimiter">The CSV delimiter to use when writing the CSV file</param>
         private static void WriteInfoboxPropertiesToCsv(string delimiter = "\t")
         {
             var applicationDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "/../../";
@@ -135,6 +146,10 @@ namespace Test
             }
         }
 
+        /// <summary>
+        /// Extracted from wikipedia dumps (step 2/3).
+        /// Process the markdown for each company infobox and extract the properties (key/value pairs).
+        /// </summary>
         private static void ProcessCompanyInfoboxes()
         {
             var batchSize = 10;
@@ -177,6 +192,10 @@ namespace Test
 
         }
 
+        /// <summary>
+        /// Extracted from wikipedia dumps (setp 1/3).
+        /// Browse the wiki dumps and extract the markdown for each company infobox.
+        /// </summary>
         private static void ParseCompanyInfoboxesInDumps()
         {
             var generalStopwatch = Stopwatch.StartNew();
