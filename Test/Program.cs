@@ -32,7 +32,8 @@ namespace Test
             {7, "Compute all ngrams frequencies"},
             {8, "Parse conpany infoboxes (all English articles - dump)"},
             {9, "Extract infobox properties"},
-            {10, "Parse company infoboxes (web)"}
+            {10, "Parse company infoboxes (web)"},
+            {11, "Process company infoboxes"}
         };
 
         static void Main(string[] args)
@@ -80,13 +81,53 @@ namespace Test
                     case 10:
                         WebParseCompanyInfoboxes();
                         break;
+                    case 11:
+                        ProcessCompanyInfoboxes();
+                        break;
                     default:
                         Console.WriteLine("This action is not supported");
                         break;
                 }
             }
-                        
+
+            Console.WriteLine("Done");
             Console.ReadKey();
+        }
+
+        private static void ProcessCompanyInfoboxes()
+        {
+            var batchSize = 10;
+            var index = 0;
+            using (var db = new WikiContext())
+            {
+                var infoboxes = db.RawDumpParsedInfoboxes.OrderBy(box => box.Id).Skip(index * batchSize).Take(batchSize).ToList();
+
+                while (infoboxes.Any())
+                {
+                    foreach (var infobox in infoboxes)
+                    {
+                        var parts = infobox.Markdown.Split(new string[] { Environment.NewLine + "|", "\n|" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                        var properties = parts.Where(line => line.Contains("="))
+                            .Select(line => line.Split(new char[] { '=' }, 2))
+                            .Select(tup => new RawInfoboxProperty
+                            {
+                                Key = tup.First(),
+                                Value = tup.Last(),
+                                PageTitle = infobox.PageTitle,
+                                InfoboxId = infobox.Id
+                            })
+                            .ToList();
+                        db.RawInfoboxProperties.AddRange(properties);
+                    }
+
+                    db.SaveChanges();
+
+                    index++;
+                    infoboxes = db.RawDumpParsedInfoboxes.OrderBy(box => box.Id).Skip(index * batchSize).Take(batchSize).ToList();
+                }
+            }
+            // One infobox doesn't have any property -> ATMNet (normal)
+
         }
 
         private static void ParseCompanyInfoboxesInDumps()

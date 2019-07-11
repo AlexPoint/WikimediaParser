@@ -108,12 +108,17 @@
     <Compile Include="Migrations\201907082023043_AddRawDumpParsedInfoboxesTable.Designer.cs">
       <DependentUpon>201907082023043_AddRawDumpParsedInfoboxesTable.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201907110846256_AddRawInfoboxPropertiesTable.cs" />
+    <Compile Include="Migrations\201907110846256_AddRawInfoboxPropertiesTable.Designer.cs">
+      <DependentUpon>201907110846256_AddRawInfoboxPropertiesTable.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="MoreLinq\MoreEnumerable.Batch.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Src\DbContext\Infobox.cs" />
     <Compile Include="Src\DbContext\InfoboxProperty.cs" />
+    <Compile Include="Src\DbContext\RawInfoboxProperty.cs" />
     <Compile Include="Src\DbContext\WikiContext.cs" />
     <Compile Include="Src\InfoboxWebParser.cs" />
     <Compile Include="Src\NGramFrequenciesResults.cs" />
@@ -153,6 +158,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\201907082023043_AddRawDumpParsedInfoboxesTable.resx">
       <DependentUpon>201907082023043_AddRawDumpParsedInfoboxesTable.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201907110846256_AddRawInfoboxPropertiesTable.resx">
+      <DependentUpon>201907110846256_AddRawInfoboxPropertiesTable.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
