@@ -16,8 +16,128 @@ namespace ETL
     {
         static void Main(string[] args)
         {
-            ForbesDataEtl();
+            //ForbesDataEtl();
+
+            WikiDumpsEtl();
         }
+
+
+        // Wiki dumps ETL -------------------------------------------------------------------------------------------------------
+
+        public static void WikiDumpsEtl()
+        {
+            var builder = new ConfigurationBuilder()
+              .SetBasePath(Directory.GetCurrentDirectory())
+              .AddJsonFile("appsettings.json");
+            IConfiguration config = new ConfigurationBuilder()
+                .AddJsonFile("appsettings.json", true, true)
+                .Build();
+            var connectionString = config["connectionString"];
+
+            //var timestamp = DateTime.Now.ToString("yyyyMMdd");
+            //var dbName = string.Format("tucdb_{0}", timestamp);
+            var dbName = "tucdb";
+
+            var csvFilePath = "C:/Users/Alex/Documents/Github/WikimediaParser/Test/Results/wiki-dumps-infoboxes-1.csv";
+
+            WikiCsvToRaw(connectionString, dbName, csvFilePath, "dbo.WikiInfoboxPropertiesRaw");
+            Console.WriteLine("=======================");
+            DeleteEmptyProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.WikiInfoboxPropertiesRaw1");
+        }
+
+        private static void WikiCsvToRaw(string connectionString, string dbName, string csvFilePath, string tgtTable)
+        {
+            // Create control flow
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
+
+            // Create database
+            DropDatabaseTask.Drop(dbName);
+            CreateDatabaseTask.Create(dbName);
+
+            // Create table for Forbes 2018 company data
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
+
+            DropTableTask.Drop(tgtTable);
+            CreateTableTask.Create(tgtTable, new List<TableColumn>()
+            {
+                new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
+                new TableColumn("PageTitle", "nvarchar(max)", allowNulls: false),
+                new TableColumn("InfoboxId", "nvarchar(max)", allowNulls: true),
+                new TableColumn("PropKey", "nvarchar(max)", allowNulls: true),
+                new TableColumn("PropValue", "nvarchar(max)", allowNulls: true)
+            });
+
+            // Load CSV file into SQL 
+            CSVSource source = new CSVSource(csvFilePath);
+            source.Configuration.Delimiter = "\t";
+            source.SkipRows = 1; // skip header
+
+            var row = new RowTransformation<string[], RawInfoboxProperty>
+            (
+                // exclude incorrect csv lines to avoid exception below
+                input => input.Length != 4 ? null : new RawInfoboxProperty()
+                {
+                    PageTitle = input[0],
+                    InfoboxId = input[1],
+                    PropKey = input[2],
+                    PropValue = input[3]
+                }
+            );
+            var dest = new DBDestination<RawInfoboxProperty>(tgtTable);
+
+            source.LinkTo(row);
+            row.LinkTo(dest);
+
+            source.Execute();
+            dest.Wait();
+
+            int rowCount = RowCountTask.Count(tgtTable).Value;
+            Console.WriteLine("Inserted {0} rows in {1}", rowCount, tgtTable);
+        }
+
+        private static void DeleteEmptyProperties(string connectionString, string dbName, string srcTable, string tgtTable)
+        {
+            // Create control flow
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
+
+            // Create database
+            CreateDatabaseTask.Create(dbName);
+
+            // Create table for Forbes 2018 company data
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
+
+            // Copy the table
+            DropTableTask.Drop(tgtTable);
+            CreateTableTask.Create(tgtTable, new List<TableColumn>()
+            {
+                new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
+                new TableColumn("PageTitle", "nvarchar(max)", allowNulls: false),
+                new TableColumn("InfoboxId", "nvarchar(max)", allowNulls: true),
+                new TableColumn("PropKey", "nvarchar(max)", allowNulls: true),
+                new TableColumn("PropValue", "nvarchar(max)", allowNulls: true)
+            });
+
+            var source = new DBSource<RawInfoboxProperty>(string.Format(@"
+                select ID, PageTitle, InfoboxId, PropKey, PropValue 
+                from {0}", srcTable));
+            var trans = new RowTransformation<RawInfoboxProperty, RawInfoboxProperty>(
+                myRow => myRow);
+            var dest = new DBDestination<RawInfoboxProperty>(tgtTable);
+
+            source.LinkTo(trans);
+            trans.LinkTo(dest);
+
+            source.Execute();
+            dest.Wait();
+
+
+            SqlTask.ExecuteNonQuery("DROP empty properties", string.Format("DELETE FROM {0} WHERE PropValue = ''", tgtTable));
+
+            int rowCount = RowCountTask.Count(tgtTable).Value;
+            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
+        }
+
+        // Forbes data ETL ------------------------------------------------------------------------------------------------------
 
         public static void ForbesDataEtl()
         {
@@ -39,7 +159,7 @@ namespace ETL
             ForbesRawToCompanyDb(connectionString, dbName, "dbo.Forbes2018Raw", "dbo.Forbes2018");
         }
 
-        public static void ForbesCsvToRaw(string connectionString, string dbName, string csvFilePath, string tgtTable)
+        private static void ForbesCsvToRaw(string connectionString, string dbName, string csvFilePath, string tgtTable)
         {            
             // Create control flow
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
@@ -107,7 +227,7 @@ namespace ETL
             Console.WriteLine("Inserted {0} rows in {1}", rowCount, tgtTable);
         }
 
-        public static void ForbesRawToCompanyDb(string connectionString, string dbName, string srcTable, string tgtTable)
+        private static void ForbesRawToCompanyDb(string connectionString, string dbName, string srcTable, string tgtTable)
         {
             // Create control flow
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
@@ -135,7 +255,7 @@ namespace ETL
             var source = new DBSource<ForbesCompanyData>(string.Format(@"
                 select ID, Name, Rank, Position, Uri, ImageUri, Industry, Country, Revenue, MarketValue, Headquarters, Ceo, Profits, Assets, State, SquareImage, Thumbnail 
                 from {0}", srcTable));
-            RowTransformation<ForbesCompanyData, CompanyData> trans = new RowTransformation<ForbesCompanyData, CompanyData>(
+            var trans = new RowTransformation<ForbesCompanyData, CompanyData>(
                 myRow => new CompanyData {
                      Name = myRow.Name,
                      Assets_2018_mUSD = myRow.Assets,
@@ -147,7 +267,7 @@ namespace ETL
                      Ceo_2018 = myRow.Ceo,
                      Headquarters = myRow.Headquarters != myRow.Country ? string.Format("{0}, {1}", myRow.Headquarters, myRow.Country): myRow.Country
                 });
-            DBDestination<CompanyData> dest = new DBDestination<CompanyData>(tgtTable);
+            var dest = new DBDestination<CompanyData>(tgtTable);
 
             source.LinkTo(trans);
             trans.LinkTo(dest);
