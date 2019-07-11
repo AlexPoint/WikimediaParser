@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
+using CsvHelper;
 using OpenNLP.Tools.SentenceDetect;
 using OpenNLP.Tools.Tokenize;
 using Test.Src;
@@ -33,7 +34,8 @@ namespace Test
             {8, "Parse conpany infoboxes (all English articles - dump)"},
             {9, "Extract infobox properties"},
             {10, "Parse company infoboxes (web)"},
-            {11, "Process company infoboxes"}
+            {11, "Process company infoboxes"},
+            {12, "Write infobox properties to CSV"}
         };
 
         static void Main(string[] args)
@@ -84,6 +86,9 @@ namespace Test
                     case 11:
                         ProcessCompanyInfoboxes();
                         break;
+                    case 12:
+                        WriteInfoboxPropertiesToCsv();
+                        break;
                     default:
                         Console.WriteLine("This action is not supported");
                         break;
@@ -92,6 +97,42 @@ namespace Test
 
             Console.WriteLine("Done");
             Console.ReadKey();
+        }
+
+        private static void WriteInfoboxPropertiesToCsv(string delimiter = "\t")
+        {
+            var applicationDirectory = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location) + "/../../";
+            var fileName = string.Format("wiki-dumps-infoboxes-{0}.csv", "1"); // TODO: give a specific identifier to identify the parsing version
+            var filePath = applicationDirectory + "Results/" + fileName;
+
+            using (var db = new WikiContext())
+            {
+                using (var mem = new FileStream(filePath, FileMode.Create))
+                using (var writer = new StreamWriter(mem))
+                using (var csvWriter = new CsvWriter(writer))
+                {
+                    csvWriter.Configuration.Delimiter = delimiter;
+
+                    csvWriter.WriteField("PageTitle");
+                    csvWriter.WriteField("InfoboxId");
+                    csvWriter.WriteField("Key");
+                    csvWriter.WriteField("Value");
+                    csvWriter.NextRecord();
+
+                    foreach (var prop in db.RawInfoboxProperties)
+                    {
+                        csvWriter.WriteField(prop.PageTitle);
+                        csvWriter.WriteField(prop.InfoboxId);
+                        csvWriter.WriteField(prop.Key);
+                        csvWriter.WriteField(prop.Value.Replace("\n", "/n")); // FIXME: hack to "escape" line returns in order not to screw up the CSV file
+                        csvWriter.NextRecord();
+                    }
+
+                    /*writer.Flush();
+                    var result = Encoding.UTF8.GetString(mem.ToArray());
+                    Console.WriteLine(result);*/
+                } 
+            }
         }
 
         private static void ProcessCompanyInfoboxes()
@@ -111,7 +152,8 @@ namespace Test
 
                     foreach (var infobox in infoboxes)
                     {
-                        var parts = infobox.Markdown.Split(new string[] { "|\n", "\n|" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                        //var parts = infobox.Markdown.Split(new string[] { "|\n", "\n|" }, StringSplitOptions.RemoveEmptyEntries).ToList();
+                        var parts = Regex.Split(infobox.Markdown, @"(\n\s*\||\|\s*\n)(?=[\sa-zA-Z_]+=)").ToList();
                         var properties = parts.Where(line => line.Contains("="))
                             .Select(line => line.Split(new char[] { '=' }, 2))
                             .Select(tup => new RawInfoboxProperty
