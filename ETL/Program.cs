@@ -3,12 +3,15 @@ using ALE.ETLBox.ConnectionManager;
 using ALE.ETLBox.ControlFlow;
 using ALE.ETLBox.DataFlow;
 using ETL.Src;
+using ETL.Src.Query;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Configuration.FileExtensions;
 using Microsoft.Extensions.Configuration.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace ETL
 {
@@ -42,7 +45,10 @@ namespace ETL
 
             WikiCsvToRaw(connectionString, dbName, csvFilePath, "dbo.WikiInfoboxPropertiesRaw");
             Console.WriteLine("=======================");
-            DeleteEmptyProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.WikiInfoboxPropertiesRaw1");
+            // Add some cleaning steps for markdown here
+            CleanInfoboxPropertyNames(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.WikiInfoboxPropertiesRaw1");
+
+            PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw1", "dbo.WikiCompanyData");
         }
 
         private static void WikiCsvToRaw(string connectionString, string dbName, string csvFilePath, string tgtTable)
@@ -93,6 +99,119 @@ namespace ETL
 
             int rowCount = RowCountTask.Count(tgtTable).Value;
             Console.WriteLine("Inserted {0} rows in {1}", rowCount, tgtTable);
+        }
+
+        private static void CleanInfoboxPropertyNames(string connectionString, string dbName, string srcTable, string tgtTable)
+        {
+            // Create control flow
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
+
+            // Create database
+            CreateDatabaseTask.Create(dbName);
+
+            // Create table for Forbes 2018 company data
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
+
+            CreateTableTask.Create(tgtTable, new List<TableColumn>()
+            {
+                new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
+                new TableColumn("PageTitle", "nvarchar(max)", allowNulls: false),
+                new TableColumn("InfoboxId", "nvarchar(max)", allowNulls: true),
+                new TableColumn("PropKey", "nvarchar(max)", allowNulls: true),
+                new TableColumn("PropValue", "nvarchar(max)", allowNulls: true)
+            });
+
+            var source = new DBSource<RawInfoboxProperty>(string.Format(@"
+                select ID, PageTitle, InfoboxId, PropKey, PropValue
+                from {0}", srcTable));
+            var trans = new RowTransformation<RawInfoboxProperty, RawInfoboxProperty>(
+                myRow => new RawInfoboxProperty
+                {
+                    PageTitle = myRow.PageTitle,
+                    InfoboxId = myRow.InfoboxId,
+                    PropKey = Regex.Replace(myRow.PropKey, @"[^a-zA-Z]+", "_"),
+                    PropValue = myRow.PropValue
+                });
+            var dest = new DBDestination<RawInfoboxProperty>(tgtTable);
+
+            source.LinkTo(trans);
+            trans.LinkTo(dest);
+
+            source.Execute();
+            dest.Wait();
+
+            int rowCount = RowCountTask.Count(tgtTable).Value;
+            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
+        }
+
+
+        private static void PivotProperties(string connectionString, string dbName, string srcTable, string tgtTable)
+        {
+            // Create control flow
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
+
+            // Create database
+            CreateDatabaseTask.Create(dbName);
+
+            // Create table for Forbes 2018 company data
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
+
+            // Retrieve the list of all the property keys
+            var source = new DBSource<PropKeyName>(string.Format(@"
+                select distinct PropKey
+                from {0}", srcTable));
+
+            var propertyKeys = new List<PropKeyName>();
+            var dest = new CustomDestination<PropKeyName>(
+                row => {
+                    propertyKeys.Add(row);
+                }
+            );
+
+            source.LinkTo(dest);
+            source.Execute();
+            dest.Wait();
+
+            // Then create the target table with those keys as columns
+            var tableColumns = propertyKeys
+                .Where(key => Regex.IsMatch(key.PropKey, @"^[\w_]+$"))
+                .Select(key => new TableColumn(key.PropKey, "nvarchar(max)", allowNulls: true))
+                .ToList();
+            tableColumns.Insert(0, new TableColumn("ID", "int", allowNulls: false, isPrimaryKey: true, isIdentity: true));
+
+            // Copy the table
+            DropTableTask.Drop(tgtTable);
+            CreateTableTask.Create(tgtTable, tableColumns);
+
+            var sqlPivotQuery = string.Format(@"DECLARE @colsPivot NVARCHAR(max),
+	@query NVARCHAR(max);
+
+select @colsPivot = STUFF((SELECT  ',' 
+                      + quotename(PropKey)
+					from {0}
+					where PropKey is not NULL
+					group by PropKey
+					--having count(*) > 1000
+            FOR XML PATH(''), TYPE
+            ).value('.', 'NVARCHAR(MAX)') 
+        ,1,1,'')
+
+set @query = 
+'INSERT INTO {1} (' + @colsPivot + ')
+select ' + @colsPivot + '
+from (
+	select PropKey, PropValue, InfoboxId, PageTitle
+	from {0}
+) as Props
+PIVOT (MIN(PropValue)
+	FOR PropKey IN (' + @colsPivot + '))
+as PVT'
+
+exec(@query)", srcTable, tgtTable);
+            SqlTask.ExecuteNonQuery("Pivot properties", sqlPivotQuery);
+
+            int rowCount = RowCountTask.Count(tgtTable).Value;
+            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
         }
 
         private static void DeleteEmptyProperties(string connectionString, string dbName, string srcTable, string tgtTable)
