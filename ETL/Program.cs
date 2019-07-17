@@ -2,6 +2,7 @@
 using ALE.ETLBox.ConnectionManager;
 using ALE.ETLBox.ControlFlow;
 using ALE.ETLBox.DataFlow;
+using ALE.ETLBox.Logging;
 using ETL.Src;
 using ETL.Src.Query;
 using ETL.Src.Transform;
@@ -47,18 +48,69 @@ namespace ETL
 
             var csvFilePath = "C:/Users/Alex/Documents/Github/WikimediaParser/Test/Results/wiki-dumps-infoboxes-1.csv";
 
-            WikiCsvToRaw(connectionString, dbName, csvFilePath, "dbo.WikiInfoboxPropertiesRaw");
+            /*WikiCsvToRaw(connectionString, dbName, csvFilePath, "dbo.WikiInfoboxPropertiesRaw");
             Console.WriteLine("=======================");
             // Add some cleaning steps for markdown here
             CleanInfoboxPropertyNames(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.WikiInfoboxPropertiesRaw1");
 
-            PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw1", "dbo.WikiCompanyDataRaw");
+            PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw1", "dbo.WikiCompanyDataRaw");*/
 
             //PostProcessWikiCompanyData(connectionString, dbName, "dbo.WikiCompanyDataRaw", "dbo.WikiCompanyData");
 
-            var dataset = LoadIntoDataset(connectionString, dbName, "dbo.WikiCompanyDataRaw");
+
+            // ----------------------------------------------------------------------------------------
+            // Code for loading a SQL table in a C# object
+            //var dataset = LoadIntoDataset(connectionString, dbName, "dbo.WikiCompanyDataRaw");
+
+            // ----------------------------------------------------------------------------------------
+            // Test complete abstraction by configuring only column transformations (and not the tables)
+
+            //WikiCsvToRaw(connectionString, dbName, csvFilePath, "dbo.WikiInfoboxPropertiesRaw");
+
+            //PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw1", "dbo.TestWikiCompanyDataRaw");
+
+            Func<string, string> transform = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s, @"^\{\{profit\}\}", "");
+            TransformColumn(connectionString, dbName, "dbo.TestWikiCompanyDataRaw", "revenue", transform);
+
         }
 
+        private static List<string> GetTableColumns(string connectionString, string db, string table)
+        {
+            // Read data from SQL server
+            var dataTable = new DataTable();
+            var conn = new SqlConnection(string.Format("{0};Database={1}", connectionString, db));
+            try
+            {
+                conn.Open();
+                var selectQuery = string.Format("SELECT * FROM {0};", table);
+                var command = new SqlCommand(selectQuery, conn);
+                using (var adapter = new SqlDataAdapter(command))
+                {
+                    adapter.Fill(dataTable);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex.Message);
+                throw ex;
+            }
+            finally
+            {
+                if (conn.State == ConnectionState.Open)
+                    conn.Close();
+            }
+            
+            // Put the results in memory (column names, and then data)
+            int icolcount = dataTable.Columns.Count;
+
+            var cols = new List<string>();
+            for (int i = 0; i < icolcount; i++)
+            {
+                cols.Add(dataTable.Columns[i].ToString());
+            }
+
+            return cols;
+        }
 
         private static Dataset LoadIntoDataset(string connectionString, string dbName, string srcTable)
         {
@@ -117,7 +169,9 @@ namespace ETL
             };
         }
 
-        private static void PostProcessWikiCompanyData(string connectionString, string dbName, string srcTable, string tgtTable)
+
+        private static void EtlTransformation<T, U>(string connectionString, string dbName, string srcTable, string tgtTable,
+            DBSource<T> source, RowTransformation<T,U> trans, DBDestination<U> dest)
         {
             // Create control flow
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
@@ -128,6 +182,9 @@ namespace ETL
             // Create table for Forbes 2018 company data
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
 
+            // TODO: move this code which shouldn't be here. 
+            // Ideally, tables should configure themselves automatically to avoid this kind of code for schema changes.
+            DropTableTask.Drop(tgtTable);
             CreateTableTask.Create(tgtTable, new List<TableColumn>()
             {
                 new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
@@ -135,18 +192,6 @@ namespace ETL
                 new TableColumn("Revenue", "nvarchar(max)", allowNulls: true),
                 new TableColumn("RevenueYear", "nvarchar(max)", allowNulls: true)
             });
-
-            var source = new DBSource<WikiCompanyData>(string.Format(@"
-                select ID, name, revenue, revenue_year
-                from {0}", srcTable));
-            var trans = new RowTransformation<WikiCompanyData, WikiCompanyData>(
-                myRow => new WikiCompanyData
-                {
-                    Name = myRow.Name,
-                    Revenue = myRow.Revenue == null ? null : Regex.Replace(myRow.Revenue, @"\(\d{4}\)", ""),
-                    RevenueYear = myRow.Revenue != null & Regex.IsMatch(myRow.Revenue, @"\(\d{4}\)") ? Regex.Match(myRow.Revenue, @"\(\d{4}\)").Value : myRow.RevenueYear
-                });
-            var dest = new DBDestination<WikiCompanyData>(tgtTable);
 
             source.LinkTo(trans);
             trans.LinkTo(dest);
@@ -156,6 +201,77 @@ namespace ETL
 
             int rowCount = RowCountTask.Count(tgtTable).Value;
             Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
+        }
+
+        private static string TransformColumn(string connectionString, string db, string table, string column, Func<string, string> transform)
+        {
+            // Create control flow
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
+
+            // Create database (should already exist)
+            CreateDatabaseTask.Create(db);
+
+            // Create table for Forbes 2018 company data
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            // Create new table, based on the source table schema (auto configuration).
+            // TODO: find a better naming logic!
+            var newTable = "dbo.newtable";
+            // Drop the table just in case. TODO: make sure that table names or unique
+            DropTableTask.Drop(newTable);
+            var columns = GetTableColumns(connectionString, db, table);
+            var tableColumns = columns.Select(col => new TableColumn(col, "nvarchar(max)", allowNulls: true)).ToList();
+                        
+            CreateTableTask.Create(newTable, tableColumns);
+
+
+            var source = new DBSource(new SqlConnectionManager(new ConnectionString(connectionString)), )
+            {
+                TableName = table
+            };
+            Func<string[], string[]> rowTransFunc = arr =>
+            {
+                arr[185] = transform(arr[185]);
+                return arr;
+            };
+            var trans = new RowTransformation(rowTransFunc);
+            /*RowTransformation trans = new RowTransformation(row =>
+            {
+                LogTask.Info($"Test message: {row[0]}, {row[185]}"); //Log DB is used as this is the ControlFlow.CurrentDBConnection!
+                return row;
+            });*/
+            var dest = new DBDestination(newTable);
+
+            source.LinkTo(trans);
+            trans.LinkTo(dest);
+
+            source.Execute();
+            dest.Wait();
+
+            int rowCount = RowCountTask.Count(newTable).Value;
+            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, newTable);
+
+            return newTable;
+        }
+
+        private static void PostProcessWikiCompanyData(string connectionString, string dbName, string srcTable, string tgtTable)
+        {
+            var source = new DBSource<WikiCompanyData>(string.Format(@"
+                select ID, name, revenue, revenue_year
+                from {0}", srcTable));
+            var regexString = @"\((\d{4})\)";
+            var trans = new RowTransformation<WikiCompanyData, WikiCompanyData>(
+                myRow => new WikiCompanyData
+                {
+                    Name = myRow.Name,
+                    Revenue = myRow.Revenue == null ? "" : Regex.Replace(myRow.Revenue, regexString, ""),
+                    RevenueYear = myRow.Revenue == null ? myRow.RevenueYear : 
+                        Regex.IsMatch(myRow.Revenue, regexString) ? Regex.Match(myRow.Revenue, regexString).Groups[1].Value: myRow.RevenueYear
+                }); ;
+            var dest = new DBDestination<WikiCompanyData>(tgtTable);
+
+            // Execute the data transformation
+            EtlTransformation<WikiCompanyData, WikiCompanyData>(connectionString, dbName, srcTable, tgtTable, source, trans, dest);
         }
 
         private static void WikiCsvToRaw(string connectionString, string dbName, string csvFilePath, string tgtTable)
@@ -285,7 +401,7 @@ namespace ETL
                 .Select(key => new TableColumn(key.PropKey, "nvarchar(max)", allowNulls: true))
                 .ToList();
             tableColumns.Insert(0, new TableColumn("PageTitle", "nvarchar(max)", allowNulls: true));
-            tableColumns.Insert(0, new TableColumn("ID", "int", allowNulls: false, isPrimaryKey: true, isIdentity: true));
+            //tableColumns.Insert(0, new TableColumn("ID", "int", allowNulls: false, isPrimaryKey: true, isIdentity: true));
 
             // Copy the table
             DropTableTask.Drop(tgtTable);
