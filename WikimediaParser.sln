@@ -11,7 +11,9 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WikimediaDumpParser", "Wiki
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CompanyScrapper", "CompanyScrapper\CompanyScrapper.csproj", "{F24D803D-CD24-4CC0-990C-CDBD6F45EF40}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ETL", "ETL\ETL.csproj", "{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ETL", "ETL\ETL.csproj", "{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ETLBox", "..\etlbox\ETLBox\ETLBox.csproj", "{7780101B-F702-4633-870E-E55FED0601D2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -57,6 +59,14 @@ Global
 		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Release|Any CPU.Build.0 = Release|Any CPU
 		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Release|x64.ActiveCfg = Release|Any CPU
 		{33C81A1C-61D9-46C6-ADF3-4CFA00D08256}.Release|x64.Build.0 = Release|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Debug|x64.Build.0 = Debug|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Release|x64.ActiveCfg = Release|Any CPU
+		{7780101B-F702-4633-870E-E55FED0601D2}.Release|x64.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

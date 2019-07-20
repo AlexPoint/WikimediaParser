@@ -225,21 +225,13 @@ namespace ETL
             CreateTableTask.Create(newTable, tableColumns);
 
 
-            var source = new DBSource(new SqlConnectionManager(new ConnectionString(connectionString)), )
-            {
-                TableName = table
-            };
+            var source = new DBSource(table);
             Func<string[], string[]> rowTransFunc = arr =>
             {
                 arr[185] = transform(arr[185]);
                 return arr;
             };
             var trans = new RowTransformation(rowTransFunc);
-            /*RowTransformation trans = new RowTransformation(row =>
-            {
-                LogTask.Info($"Test message: {row[0]}, {row[185]}"); //Log DB is used as this is the ControlFlow.CurrentDBConnection!
-                return row;
-            });*/
             var dest = new DBDestination(newTable);
 
             source.LinkTo(trans);
@@ -380,9 +372,9 @@ namespace ETL
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
 
             // Retrieve the list of all the property keys
-            var source = new DBSource<PropKeyName>(string.Format(@"
-                select distinct PropKey
-                from {0}", srcTable));
+            var source = new DBSource<PropKeyName>() {
+                Sql = string.Format(@"select PropKey from {0} group by PropKey", srcTable)
+            };
 
             var propertyKeys = new List<PropKeyName>();
             var dest = new CustomDestination<PropKeyName>(
@@ -415,7 +407,6 @@ select @colsPivot = STUFF((SELECT  ','
 					from {0}
 					where PropKey is not NULL
 					group by PropKey
-					--having count(*) > 1000
             FOR XML PATH(''), TYPE
             ).value('.', 'NVARCHAR(MAX)') 
         ,1,1,'')
