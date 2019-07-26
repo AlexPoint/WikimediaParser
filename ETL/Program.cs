@@ -67,10 +67,10 @@ namespace ETL
 
             //WikiCsvToRaw(connectionString, dbName, csvFilePath, "dbo.WikiInfoboxPropertiesRaw");
 
-            //PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw1", "dbo.TestWikiCompanyDataRaw");
+            PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw1", "dbo.TestWikiCompanyDataRaw");
 
             Func<string, string> transform = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s, @"^\{\{profit\}\}", "");
-            TransformColumn(connectionString, dbName, "dbo.TestWikiCompanyDataRaw", "revenue", transform);
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", transform);
 
         }
 
@@ -82,7 +82,7 @@ namespace ETL
             try
             {
                 conn.Open();
-                var selectQuery = string.Format("SELECT * FROM {0};", table);
+                var selectQuery = string.Format("SELECT * FROM [{0}];", table);
                 var command = new SqlCommand(selectQuery, conn);
                 using (var adapter = new SqlDataAdapter(command))
                 {
@@ -205,34 +205,83 @@ namespace ETL
 
         private static string TransformColumn(string connectionString, string db, string table, string column, Func<string, string> transform)
         {
-            // Create control flow
+            Console.WriteLine("------------");
+            Console.WriteLine("Executing TransformColumn task");
+
+            // Create control flow and db (should already exist)
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
-
-            // Create database (should already exist)
             CreateDatabaseTask.Create(db);
-
-            // Create table for Forbes 2018 company data
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
 
-            // Create new table, based on the source table schema (auto configuration).
-            // TODO: find a better naming logic!
-            var newTable = "dbo.newtable";
-            // Drop the table just in case. TODO: make sure that table names or unique
-            DropTableTask.Drop(newTable);
-            var columns = GetTableColumns(connectionString, db, table);
+            // TODO: check the existence of the table and the column, otherwise return
+
+            // ETLBox does not allow for altering a table (such as adding a new column) and for "migrating" data into the same table (such as updating a column).
+            // As a result, we use a convoluted way to update a column of a given table:
+            // - we rename the table (temp table)
+            // - we add a new column
+            // - we create a new table with the name of the initial (now renamed) table and with the same schema
+            // - we use ETLBox to transfer data from the temp table to the new table, with the given transformation
+            // - we drop the temp table
+            var tempTable = string.Format("{0}Temp", table);
+            var tempColumn = string.Format("{0}Temp", column);
+            /*var task1 = new SqlTask()
+            {
+                Sql = string.Format(@"EXEC sp_rename '{0}', '{1}';", table, tempTable, column, tempColumn)
+            };
+            task1.Execute();
+
+            var task2 = new SqlTask()
+            {
+                Sql = string.Format(@"EXEC sp_RENAME '[{1}].[{2}]', '{3}', 'COLUMN';", table, tempTable, column, tempColumn)
+            };
+            task2.Execute();
+
+            var task3 = new SqlTask()
+            {
+                Sql = string.Format(@"ALTER TABLE [{1}] ADD {2} NVARCHAR(MAX) NULL;", table, tempTable, column, tempColumn)
+            };
+            task3.Execute();*/
+
+            DropTableTask.Drop(tempTable);
+            var createTempTableTask = new SqlTask("Configure temp table", string.Format(@"EXEC sp_rename '{0}', '{1}';
+                                                    EXEC sp_RENAME '[{1}].[{2}]', '{3}', 'COLUMN';
+                                                    ALTER TABLE [{1}] ADD {2} NVARCHAR(MAX) NULL;", table, tempTable, column, tempColumn));
+            createTempTableTask.Execute();
+
+            // Change the column name 
+            // TODO: check the existing column names and use a name not already used
+            //var srcColumnName = string.Format("{0}_temp", column);
+            /*var alterColumnTask = new SqlTask("Update column name", string.Format("EXEC sp_RENAME '{0}.{1}', '{2}', 'COLUMN'", table, column, srcColumnName));
+            alterColumnTask.Execute();
+
+            var addColumnTask = new SqlTask("Add column", string.Format("ALTER TABLE {0} ADD {1} NVARCHAR(MAX) NULL;", table, column));
+            addColumnTask.Execute();*/
+
+
+            // Create new table, with the original table name, which replicates the temp table (same columns), based on the source table schema (auto configuration).
+
+            var columns = GetTableColumns(connectionString, db, tempTable);
             var tableColumns = columns.Select(col => new TableColumn(col, "nvarchar(max)", allowNulls: true)).ToList();
-                        
-            CreateTableTask.Create(newTable, tableColumns);
 
+            // We need to create a new table as destination (source and destination cannot be the same).
+            // Drop the table just in case. 
+            // TODO: make sure that table names or unique
+            DropTableTask.Drop(table);
+            CreateTableTask.Create(table, tableColumns);
 
-            var source = new DBSource(table);
+            var oldColumnIndex = columns.IndexOf(tempColumn);
+            var newColumnIndex = columns.IndexOf(column);
+
+            //var source = new DBSource(string.Format("[{0}]", tempTable));
+            var source = new DBSource(tempTable);
             Func<string[], string[]> rowTransFunc = arr =>
             {
-                arr[185] = transform(arr[185]);
+                arr[newColumnIndex] = transform(arr[oldColumnIndex]);
                 return arr;
             };
             var trans = new RowTransformation(rowTransFunc);
-            var dest = new DBDestination(newTable);
+            //var dest = new DBDestination(string.Format("[{0}]", table));
+            var dest = new DBDestination(table);
 
             source.LinkTo(trans);
             trans.LinkTo(dest);
@@ -240,10 +289,44 @@ namespace ETL
             source.Execute();
             dest.Wait();
 
-            int rowCount = RowCountTask.Count(newTable).Value;
-            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, newTable);
+            int rowCount = RowCountTask.Count(table).Value;
+            // TODO: stats on updates
+            //Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, newTable);
 
-            return newTable;
+            // Log information about the result of the trasnformation
+            var countTask = new RowCountTask(table, string.Format("{0} != {1}", tempColumn, column));
+            Console.WriteLine("{0} rows have been updated", countTask.Count().Rows);
+
+            string[] curCol = null;
+            var examples = new List<string[]>();
+            var sql = string.Format("select {0}, {1} from {2} where {0} != {1}", column, tempColumn, table);
+            var findExamplesTask = new SqlTask("Select a few examples",
+                sql, 
+                () => {
+                    curCol = new string[2];
+                }, 
+                () => {
+                    examples.Add(curCol);
+                },
+                col => curCol[1] = col.ToString(),
+                tempCol => curCol[0] = tempCol.ToString())
+            {
+                
+                ReadTopX = 5
+            };
+            findExamplesTask.ExecuteReader();
+            foreach (var example in examples)
+            {
+                Console.WriteLine("{0} => {1}", example[0], example[1]);
+            }
+
+
+            DropTableTask.Drop(tempTable);
+
+
+            Console.WriteLine("End of execution of TransformColumn task");
+
+            return table;
         }
 
         private static void PostProcessWikiCompanyData(string connectionString, string dbName, string srcTable, string tgtTable)
