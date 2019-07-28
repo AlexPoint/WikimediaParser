@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using System.Web;
 using System.Xml;
 using CsvHelper;
 using OpenNLP.Tools.SentenceDetect;
@@ -215,7 +216,7 @@ namespace Test
                 {
                     var boxes = page.GetInfoboxTexts("company").Select(s => new RawDumpParsedInfobox()
                     {
-                        Markdown = s,
+                        Markdown = HttpUtility.HtmlDecode(s),
                         PageTitle = page.Title
                     });
                     infoboxes.AddRange(boxes);
