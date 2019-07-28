@@ -22,7 +22,7 @@ namespace WikitionaryDumpParser.Src
         {
             var infoboxes = new List<string>();
 
-            var infoboxRegex = new Regex("{{Infobox\\s" + infoboxType, 
+            var infoboxRegex = new Regex("{{\\s*Infobox\\s+" + infoboxType, 
                 RegexOptions.Multiline | RegexOptions.IgnoreCase);
 
             var matches = infoboxRegex.Matches(Text);
