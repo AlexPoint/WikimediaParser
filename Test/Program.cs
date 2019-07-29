@@ -135,8 +135,8 @@ namespace Test
                     {
                         csvWriter.WriteField(prop.PageTitle);
                         csvWriter.WriteField(prop.InfoboxId);
-                        csvWriter.WriteField(prop.Key);
-                        csvWriter.WriteField(prop.Value.Replace("\n", "/n")); // FIXME: hack to "escape" line returns in order not to screw up the CSV file
+                        csvWriter.WriteField(prop.PropKey);
+                        csvWriter.WriteField(prop.PropValue.Replace("\n", "/n")); // FIXME: hack to "escape" line returns in order not to screw up the CSV file
                         csvWriter.NextRecord();
                     }
 
@@ -174,8 +174,8 @@ namespace Test
                             .Select(line => line.Split(new char[] { '=' }, 2))
                             .Select(tup => new RawInfoboxProperty
                             {
-                                Key = tup.First().Trim(),
-                                Value = tup.Last().Trim(),
+                                PropKey = tup.First().Trim(),
+                                PropValue = tup.Last().Trim(),
                                 PageTitle = infobox.PageTitle,
                                 InfoboxId = infobox.Id
                             })
