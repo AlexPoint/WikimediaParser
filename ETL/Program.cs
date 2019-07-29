@@ -69,11 +69,20 @@ namespace ETL
             // Load directly infobox properties from db wikiboxes, table RawInfoboxProperties as ETLBox allows transfer between databases.
             // (we were using csv files as an intermediate step before but it triggered issues due to badly form CSV rows).
             CopyTable(connectionString, "wikiboxes", "dbo.RawInfoboxProperties", connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw");
-            
-            PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.TestWikiCompanyDataRaw");
+
+            // Infobox property keys do not always meet the Wiki standards (see https://en.wikipedia.org/wiki/Template:Infobox_company)
+            // As a result, we "clean" the names here.
+            Func<string, string> t1 = s => string.IsNullOrEmpty(s) ? null : s.ToLower();
+            TransformColumn(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", t1);
+            Func<string, string> t2 = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s, @"(^[^a-z]+|[^a-z]+$)", "");
+            TransformColumn(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", t2);
+            Func<string, string> t3 = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s.ToLower(), @"[^a-z]+", "_");
+            TransformColumn(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", t3);
+
+            /*PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.TestWikiCompanyDataRaw");
 
             Func<string, string> transform = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s, @"^\{\{profit\}\}", "");
-            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", transform);
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", transform);*/
 
         }
 
@@ -301,7 +310,10 @@ namespace ETL
                 Console.WriteLine("{0} => {1}", example[0], example[1]);
             }
 
+            // Cleanup behind by dropping the temp table and column created
             DropTableTask.Drop(tempTable);
+            var dropTempCol = new SqlTask("Drop temp column", string.Format("ALTER TABLE [{0}] DROP COLUMN [{1}]", table, tempColumn));
+            dropTempCol.Execute();
             Console.WriteLine("End of execution of TransformColumn task");
 
             return table;
