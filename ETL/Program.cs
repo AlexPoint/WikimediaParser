@@ -23,6 +23,8 @@ namespace ETL
 {
     class Program
     {
+        private static NLog.Logger EtlFlowLogger = NLog.LogManager.GetLogger("EtlFlow");
+
         static void Main(string[] args)
         {
             //ForbesDataEtl();
@@ -68,7 +70,7 @@ namespace ETL
 
             // Load directly infobox properties from db wikiboxes, table RawInfoboxProperties as ETLBox allows transfer between databases.
             // (we were using csv files as an intermediate step before but it triggered issues due to badly form CSV rows).
-            CopyTable(connectionString, "wikiboxes", "dbo.RawInfoboxProperties", connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw");
+            /*CopyTable(connectionString, "wikiboxes", "dbo.RawInfoboxProperties", connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw");
 
             // Infobox property keys do not always meet the Wiki standards (see https://en.wikipedia.org/wiki/Template:Infobox_company)
             // As a result, we "clean" the names here.
@@ -78,12 +80,52 @@ namespace ETL
             TransformColumn(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", t2);
             Func<string, string> t3 = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s.ToLower(), @"[^a-z]+", "_");
             TransformColumn(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", t3);
+            Func<string, string> t4 = s => string.IsNullOrEmpty(s) ? null : s.Substring(0, Math.Min(s.Length, 128));
+            TransformColumn(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", t4);
 
-            /*PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.TestWikiCompanyDataRaw");
+            // Specific delete query
+            DeleteInfrequentInfoboxProperties(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", 100);*/
 
-            Func<string, string> transform = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s, @"^\{\{profit\}\}", "");
+            PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.TestWikiCompanyDataRaw");
+
+            // ISIN number
+            var isinRegex = new Regex("^[A-Z\\d]{12}$", RegexOptions.Compiled);
+            Func<string, string> cleanIsin = s => string.IsNullOrEmpty(s) || !isinRegex.IsMatch(s) ? null : s;
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "isin", cleanIsin);
+
+            // Revenue year
+            var revYearRegex = new Regex(@"\((?:FY\s+)?([\d\s]+)\)", RegexOptions.Compiled);
+            Func<string,string> extractRevenueYear = s => string.IsNullOrEmpty(s) || !revYearRegex.IsMatch(s) ?
+                null : revYearRegex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_year2", extractRevenueYear);
+
+            //Func<string, string> transform = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s, @"^\{\{profit\}\}", "");
+            /*var wikiLinkRegex = new Regex(@"^\[\[[^\|\]]+\|([^\]]+)\]\]", RegexOptions.Compiled);
+            Func<string, string> transform = s => string.IsNullOrEmpty(s) || !wikiLinkRegex.IsMatch(s) ?
+                null : 
+                wikiLinkRegex.Replace(s, "$1");
             TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", transform);*/
 
+        }
+
+        private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
+        {
+            var groups = regex.Match(input).Groups;
+            return string.Join(sep, groups.Select(g => g.Value).ToArray());
+        }
+
+        private static void DeleteInfrequentInfoboxProperties(string connectionString, string db, string table, string column, int threshold)
+        {
+            // Create control flow
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
+
+            // Create table for Forbes 2018 company data
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            var deleteQuery = new SqlTask("Delete infrequent properties",
+                string.Format("DELETE from [{0}] where {1} in (select {1} from [{0}] group by {1} having count(*) <= {2})",
+                table, column, threshold));
+            deleteQuery.Execute();
         }
 
         private static List<TableColumn> GetTableColumns(string connectionString, string db, string table)
@@ -225,10 +267,132 @@ namespace ETL
             Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
         }
 
+        public static string ExtractFromColumn(string connectionString, string db, string table, string srcColumn, string tgtColumn, Func<string,string> extract)
+        {
+            EtlFlowLogger.Info("------------");
+            EtlFlowLogger.Info("Executing ExtractFromColumn task");
+
+            // Create control flow 
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            // Check the existence of the table and the source column, and the non-existence of the target column
+            var tableExist = DoesTableExist(connectionString, db, table);
+            if (!tableExist)
+            {
+                EtlFlowLogger.Warn("Cannot ExtractColumn from a non-existing table: {0}. Skipping operation.", table);
+                return "";
+            }
+            if(!DoesColumnExist(connectionString, db, table, srcColumn))
+            {
+                EtlFlowLogger.Warn("Cannot ExtractColumn from a non-existing column '{0}' in table '{1}'. Skipping operation.", srcColumn, table);
+                return "";
+            }
+            if(DoesColumnExist(connectionString, db, table, tgtColumn))
+            {
+                EtlFlowLogger.Warn("Unpexected behaviour when extracting column '{0}' to an already existing column '{1}' in table '{2}'. Skipping operation.",
+                    srcColumn, tgtColumn, table);
+                return "";
+            }
+
+            // Rename current table to temporary name and create a copy of this table with an additional column.
+            // With ETLBox, we cannot update columns inside the same table. We have to create a new table and a flow between the two tables.
+            var tempTable = string.Format("{0}Temp", table);
+
+            // TODO: check if the temp table already exists?
+            DropTableTask.Drop(tempTable);
+            var createTempTableTask = new SqlTask("Rename to temp table", string.Format(@"EXEC sp_rename '{0}', '{1}';", table, tempTable));
+            createTempTableTask.Execute();
+
+            // Add a copy of the table
+            var columns = GetTableColumns(connectionString, db, tempTable);
+            var srcCol = columns.First(c => c.Name == srcColumn);
+            columns.Add(new TableColumn(tgtColumn, srcCol.DataType, srcCol.AllowNulls));
+
+            // We need to create a new table as destination (source and destination cannot be the same).
+            CreateTableTask.Create(table, columns);
+
+            var oldColumnIndex = columns.FindIndex(col => col.Name == srcColumn);
+            var newColumnIndex = columns.FindIndex(col => col.Name == tgtColumn);
+
+            var source = new DBSource(tempTable);
+            Func<string[], string[]> rowTransFunc = arr =>
+            {
+                Array.Resize(ref arr, arr.Length + 1);
+                arr[newColumnIndex] = extract(arr[oldColumnIndex]);
+                return arr;
+            };
+            var trans = new RowTransformation(rowTransFunc);
+            var dest = new DBDestination(table);
+
+            source.LinkTo(trans);
+            trans.LinkTo(dest);
+
+            source.Execute();
+            dest.Wait();
+
+
+            // Log information about the result of the trasnformation
+            var countTask = new RowCountTask(table, string.Format("{0} is not NULL", tgtColumn));
+            EtlFlowLogger.Info("{0} rows have been updated", countTask.Count().Rows);
+
+            string[] curCol = null;
+            var examples = new List<string[]>();
+            var sql = string.Format("select distinct {0}, {1} from {2} where {1} is not NULL", srcColumn, tgtColumn, table);
+            var findExamplesTask = new SqlTask("Select a few examples",
+                sql,
+                () => {
+                    curCol = new string[2];
+                },
+                () => {
+                    examples.Add(curCol);
+                },
+                col => curCol[1] = col.ToString(),
+                tempCol => curCol[0] = tempCol.ToString())
+            {
+
+                ReadTopX = 5
+            };
+            findExamplesTask.ExecuteReader();
+            foreach (var example in examples)
+            {
+                EtlFlowLogger.Info("{0} => {1}", example[0], example[1]);
+            }
+
+            // Cleanup behind by dropping the temp table 
+            DropTableTask.Drop(tempTable);
+            EtlFlowLogger.Info("End of execution of ExtractFromColumn task");
+
+            return table;
+        }
+
+        private static bool DoesColumnExist(string connectionString, string db, string table, string column)
+        {
+            var columns = GetTableColumns(connectionString, db, table);
+            return columns.Any(c => c.Name == column);
+        }
+
+        private static bool DoesTableExist(string connectionString, string db, string table)
+        {
+            var tables = GetTables(connectionString, db);
+            return tables.Any(t => t == table);
+        }
+
+        private static List<string> GetTables(string connectionString, string db)
+        {
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            var tables = new List<string>();
+            var getTables = new SqlTask("", "SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES",
+                s => tables.Add(s.ToString()));
+            getTables.ExecuteReader();
+
+            return tables;
+        }
+
         private static string TransformColumn(string connectionString, string db, string table, string column, Func<string, string> transform)
         {
-            Console.WriteLine("------------");
-            Console.WriteLine("Executing TransformColumn task");
+            EtlFlowLogger.Info("------------");
+            EtlFlowLogger.Info("Executing TransformColumn task");
 
             // Create control flow and db (should already exist)
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
@@ -284,12 +448,12 @@ namespace ETL
             // TODO: stats on updates
 
             // Log information about the result of the trasnformation
-            var countTask = new RowCountTask(table, string.Format("{0} != {1}", tempColumn, column));
-            Console.WriteLine("{0} rows have been updated", countTask.Count().Rows);
+            var countTask = new RowCountTask(table, string.Format("{0} != {1} or ({0} is NULL and {1} is not NULL) or ({0} is not NULL and {1} is NULL)", tempColumn, column));
+            EtlFlowLogger.Info("{0} rows have been updated", countTask.Count().Rows);
 
             string[] curCol = null;
             var examples = new List<string[]>();
-            var sql = string.Format("select {0}, {1} from {2} where {0} != {1}", column, tempColumn, table);
+            var sql = string.Format("select distinct {0}, {1} from {2} where {0} != {1} or ({0} is NULL and {1} is not NULL) or ({0} is not NULL and {1} is NULL)", column, tempColumn, table);
             var findExamplesTask = new SqlTask("Select a few examples",
                 sql, 
                 () => {
@@ -298,7 +462,7 @@ namespace ETL
                 () => {
                     examples.Add(curCol);
                 },
-                col => curCol[1] = col.ToString(),
+                col => curCol[1] = col != null ? col.ToString(): string.Empty,
                 tempCol => curCol[0] = tempCol.ToString())
             {
                 
@@ -307,14 +471,14 @@ namespace ETL
             findExamplesTask.ExecuteReader();
             foreach (var example in examples)
             {
-                Console.WriteLine("{0} => {1}", example[0], example[1]);
+                EtlFlowLogger.Info("{0} => {1}", example[0], example[1]);
             }
 
             // Cleanup behind by dropping the temp table and column created
             DropTableTask.Drop(tempTable);
             var dropTempCol = new SqlTask("Drop temp column", string.Format("ALTER TABLE [{0}] DROP COLUMN [{1}]", table, tempColumn));
             dropTempCol.Execute();
-            Console.WriteLine("End of execution of TransformColumn task");
+            EtlFlowLogger.Info("End of execution of TransformColumn task");
 
             return table;
         }
