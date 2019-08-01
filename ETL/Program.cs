@@ -95,17 +95,18 @@ namespace ETL
 
             // Revenue year
             var revYearRegex = new Regex(@"\((?:FY\s+)?([\d\s]+)\)", RegexOptions.Compiled);
-            Func<string,string> extractRevenueYear = s => string.IsNullOrEmpty(s) || !revYearRegex.IsMatch(s) ?
-                null : revYearRegex.Match(s).Groups[1].Value;
+            Func<string, string> extractRevenueYear = s => string.IsNullOrEmpty(s) || !revYearRegex.IsMatch(s) ?
+                 null : revYearRegex.Match(s).Groups[1].Value;
             ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_year2", extractRevenueYear);
 
-            //Func<string, string> transform = s => string.IsNullOrEmpty(s) ? null : Regex.Replace(s, @"^\{\{profit\}\}", "");
-            /*var wikiLinkRegex = new Regex(@"^\[\[[^\|\]]+\|([^\]]+)\]\]", RegexOptions.Compiled);
-            Func<string, string> transform = s => string.IsNullOrEmpty(s) || !wikiLinkRegex.IsMatch(s) ?
-                null : 
-                wikiLinkRegex.Replace(s, "$1");
-            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", transform);*/
+            var cleanRevYearRegex = new Regex(@"(\d{4}(?:\-\d{2})?)", RegexOptions.Compiled);
+            Func<string, string> cleanRevenueYear = s => string.IsNullOrEmpty(s) || !cleanRevYearRegex.IsMatch(s) ?
+                 null : cleanRevYearRegex.Match(s).Groups[1].Value;
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_year", cleanRevenueYear);
 
+            Func<string, string, string> mergeRevYear = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
+            MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_year", "revenue_year2", "revenue_year3", mergeRevYear);
+            
         }
 
         private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
@@ -265,6 +266,118 @@ namespace ETL
 
             int rowCount = RowCountTask.Count(tgtTable).Value;
             Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
+        }
+
+        public static string MergeColumns(string connectionString, string db, string table, string srcColumn1, string srcColumn2, string tgtColumn, 
+            Func<string, string, string> merge)
+        {
+            EtlFlowLogger.Info("------------");
+            EtlFlowLogger.Info("Executing MergeColumns task");
+
+            // Create control flow 
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            // Check the existence of the table and the source column, and the non-existence of the target column
+            var tableExist = DoesTableExist(connectionString, db, table);
+            if (!tableExist)
+            {
+                EtlFlowLogger.Warn("Cannot MergeColumns from a non-existing table: {0}. Skipping operation.", table);
+                return "";
+            }
+            if (!DoesColumnExist(connectionString, db, table, srcColumn1))
+            {
+                EtlFlowLogger.Warn("Cannot MergeColumns with non-existing source column {0}. Skipping operation.", srcColumn1);
+                return "";
+            }
+            if (!DoesColumnExist(connectionString, db, table, srcColumn2))
+            {
+                EtlFlowLogger.Warn("Cannot MergeColumns with non-existing source column {0}. Skipping operation.", srcColumn2);
+                return "";
+            }
+            // TODO: allow case where target column is one of the source columns?
+            if (DoesColumnExist(connectionString, db, table, tgtColumn))
+            {
+                EtlFlowLogger.Warn("Unexpected behaviour when merging columns '{0}' & '{1}' to an already existing column '{2}' in table '{3}'. Skipping operation.",
+                    srcColumn1, srcColumn2, tgtColumn, table);
+                return "";
+            }
+
+
+            // Rename current table to temporary name and create a copy of this table with an additional column.
+            // With ETLBox, we cannot update columns inside the same table. We have to create a new table and a flow between the two tables.
+            var tempTable = string.Format("{0}Temp", table);
+
+            // TODO: check if the temp table already exists?
+            DropTableTask.Drop(tempTable);
+            var createTempTableTask = new SqlTask("Rename to temp table", string.Format(@"EXEC sp_rename '{0}', '{1}';", table, tempTable));
+            createTempTableTask.Execute();
+
+            // Add a copy of the table
+            var columns = GetTableColumns(connectionString, db, tempTable);
+            /*var newColumns = columns.Where(col => col.Name != srcColumn1 & col.Name != srcColumn2).ToList();*/
+
+            var srcCol1 = columns.First(c => c.Name == srcColumn1);
+            columns.Add(new TableColumn(tgtColumn, srcCol1.DataType, srcCol1.AllowNulls));
+
+            // We need to create a new table as destination (source and destination cannot be the same).
+            CreateTableTask.Create(table, columns);
+
+            var oldColumnIndex1 = columns.FindIndex(col => col.Name == srcColumn1);
+            var oldColumnIndex2 = columns.FindIndex(col => col.Name == srcColumn2);
+            var newColumnIndex = columns.FindIndex(col => col.Name == tgtColumn);
+
+            var source = new DBSource(tempTable);
+            Func<string[], string[]> rowTransFunc = arr =>
+            {
+                Array.Resize(ref arr, arr.Length + 1);
+                arr[newColumnIndex] = merge(arr[oldColumnIndex1], arr[oldColumnIndex2]);
+                return arr;
+            };
+            var trans = new RowTransformation(rowTransFunc);
+            var dest = new DBDestination(table);
+
+            source.LinkTo(trans);
+            trans.LinkTo(dest);
+
+            source.Execute();
+            dest.Wait();
+
+
+            // Log information about the result of the trasnformation
+            var countTask = new RowCountTask(table, string.Format("{0} is not NULL", tgtColumn));
+            EtlFlowLogger.Info("{0} rows have been updated", countTask.Count().Rows);
+
+            string[] curCol = null;
+            var examples = new List<string[]>();
+            var sql = string.Format("select distinct {0}, {1}, {2} from {3} where {2} is not NULL", srcColumn1, srcColumn2, tgtColumn, table);
+            var findExamplesTask = new SqlTask("Select a few examples",
+                sql,
+                () => {
+                    curCol = new string[3];
+                },
+                () => {
+                    examples.Add(curCol);
+                },
+                col => curCol[1] = col != null ? col.ToString(): null,
+                tempCol => curCol[0] = tempCol != null ? tempCol.ToString(): null,
+                tgtCol => curCol[2] = tgtCol != null ? tgtCol.ToString(): null)
+            {
+
+                ReadTopX = 5
+            };
+            findExamplesTask.ExecuteReader();
+            foreach (var example in examples)
+            {
+                EtlFlowLogger.Info("'{0}' + '{1}' => {2}", example[0], example[1], example[2]);
+            }
+
+            // Cleanup behind by dropping the temp table and source columns. 
+            DropTableTask.Drop(tempTable);
+            var dropTempCols = new SqlTask("Drop temp column", string.Format("ALTER TABLE [{0}] DROP COLUMN [{1}], [{2}]", table, srcColumn1, srcColumn2));
+            dropTempCols.Execute();
+            EtlFlowLogger.Info("End of execution of MergeColumns task");
+
+            return table;
         }
 
         public static string ExtractFromColumn(string connectionString, string db, string table, string srcColumn, string tgtColumn, Func<string,string> extract)
