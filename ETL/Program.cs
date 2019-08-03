@@ -106,7 +106,8 @@ namespace ETL
 
             Func<string, string, string> mergeRevYear = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_year", "revenue_year2", "revenue_year3", mergeRevYear);
-            
+
+            DeleteColumns(connectionString, dbName, "TestWikiCompanyDataRaw", new List<string>() { "caption", "revenue_year2" });
         }
 
         private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
@@ -127,6 +128,29 @@ namespace ETL
                 string.Format("DELETE from [{0}] where {1} in (select {1} from [{0}] group by {1} having count(*) <= {2})",
                 table, column, threshold));
             deleteQuery.Execute();
+        }
+
+        private static void DeleteColumns(string connectionString, string db, string table, List<string> columns)
+        {
+            // Create control flow 
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            var existingColumns = GetTableColumns(connectionString, db, table);
+            var missingColumns = columns.Where(col => !existingColumns.Any(eCol => eCol.Name == col)).ToList();
+
+            if (missingColumns.Any())
+            {
+                EtlFlowLogger.Warn("Tried to delete {0} columns missing in table {1}: {2}. Skipping the deletion of those columns.", 
+                    missingColumns.Count, table, string.Join(", ", missingColumns));
+            }
+
+            var colsToDelete = columns.Except(missingColumns).ToList();
+            if (colsToDelete.Any())
+            {
+                var colQuery = string.Join(", ", colsToDelete.Select(col => string.Format("[{0}]", col)));
+                var dropTempCols = new SqlTask("Drop temp column", string.Format("ALTER TABLE [{0}] DROP COLUMN {1}", table, colQuery));
+                dropTempCols.Execute(); 
+            }
         }
 
         private static List<TableColumn> GetTableColumns(string connectionString, string db, string table)
