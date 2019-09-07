@@ -108,9 +108,88 @@ namespace ETL
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_year", "revenue_year2", "revenue_year3", mergeRevYear);
 
             DeleteColumns(connectionString, dbName, "TestWikiCompanyDataRaw", new List<string>() { "caption", "revenue_year2" });
+
+            // Revenue
+
+            // 1. Clean the units with Wiki links (e.g. $19.692 [[1000000000 (number)|billion]] -> $19.692 billion)
+            var cleanRevUnitsRegex = new Regex(@"\[\[(?:[^\|]+\|)?(million|billion)\]\]", RegexOptions.Compiled);
+            Func<string, string> cleanRevUnits= s => string.IsNullOrEmpty(s) || !cleanRevUnitsRegex.IsMatch(s) ?
+                 null : cleanRevUnitsRegex.Replace(s, "$1");
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", cleanRevUnits);
+
+            Func<string, string> cleanRevNbsp = s => string.IsNullOrEmpty(s) ? null : s.Replace("&nbsp;", " ");
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", cleanRevNbsp);
+
+            // 2. Extract the revenue amount
+            var revAmountRegex = new Regex(@"((?:\-)?[\d\.\s,]+[\s]+(?:million|billion))", RegexOptions.Compiled);
+            Func<string, string> extractRevenueAmount = s => string.IsNullOrEmpty(s) || !revAmountRegex.IsMatch(s) ?
+                 null : revAmountRegex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_amount", extractRevenueAmount);
+
+            // 3. Extract the source url (for the revenue information)
+            // Some revenue field contain a reference with the URL of the page where the information was found.
+            // (e.g. {{cite web|title=Sytner reports record profits, warns of drop in post-Brexit consumer confidence|url=http://www.am-online.com/news/dealer-news/2016/10/24/sytner-reports-record-profits-warns-of-drop-in-post-brexit-consumer-confidence|website=Automotive Management|publisher=AM-Online|accessdate=18 August 2017}})
+            var revSrcUrlRegex = new Regex(@"\{\{cite web\s*\|.*url=([^\|]+)\|", RegexOptions.Compiled);
+            Func<string, string> extractRevenueSrcUrl = s => string.IsNullOrEmpty(s) || !revSrcUrlRegex.IsMatch(s) ?
+                 null : revSrcUrlRegex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_src_url", extractRevenueSrcUrl);
+
+            // 4. Extract the currency
+            // Multiple passes to cover most cases
+            // 
+            var cleanRevCurRegex = new Regex(@"\{\{0\}\}", RegexOptions.Compiled);
+            Func<string, string> cleanRevCur = s => string.IsNullOrEmpty(s) || !cleanRevCurRegex.IsMatch(s) ?
+                  s : cleanRevCurRegex.Replace(s, "");
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", cleanRevCur);
+
+            var revCurrency1Regex = new Regex(@"\[\[([^\|]+)(?:\|[^\]]+)?\]\](?:[\$£€])?((?:\-)?[\d\.\s,]+[\s]+(?:million|billion))", RegexOptions.Compiled);
+            Func<string, string> extractRevenueCurrency1 = s => string.IsNullOrEmpty(s) || !revCurrency1Regex.IsMatch(s) ?
+                 null : revCurrency1Regex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_currency_1", extractRevenueCurrency1);
+
+            var revCurrency2Regex = new Regex(@"(?:[\$£€])?((?:\-)?[\d\.\s,]+[\s]+(?:million|billion))\s+\[\[([^\|]+)(?:\|[^\[]+)?\]\]", RegexOptions.Compiled);
+            Func<string, string> extractRevenueCurrency2 = s => string.IsNullOrEmpty(s) || !revCurrency2Regex.IsMatch(s) ?
+                 null : revCurrency2Regex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_currency_2", extractRevenueCurrency2);
+
+            var revCurrency3Regex = new Regex(@"\{\{([A-Z]{3})\|(?:[^\|]+\|)?((?:\-)?[\d\.\s,]+[\s]+(?:million|billion))\s*\}\}", RegexOptions.Compiled);
+            Func<string, string> extractRevenueCurrency3 = s => string.IsNullOrEmpty(s) || !revCurrency3Regex.IsMatch(s) ?
+                 null : revCurrency3Regex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_currency_3", extractRevenueCurrency3);
+
+            var revCurrency4Regex = new Regex(@"(?:[\$£€])?(?:\-)?[\d\.\s,]+[\s]+(?:million|billion)\s+\[\[([^\|\]]+)(?:\|[^\]]+)?\]\]", RegexOptions.Compiled);
+            Func<string, string> extractRevenueCurrency4 = s => string.IsNullOrEmpty(s) || !revCurrency4Regex.IsMatch(s) ?
+             null : revCurrency4Regex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_currency_4", extractRevenueCurrency4);
+
+            var revCurrency5Regex = new Regex(@"([A-Z]*[\$£€¥])(?:\-)?[\d\.\s,]+[\s]+(?:million|billion)", RegexOptions.Compiled);
+            Func<string, string> extractRevenueCurrency5 = s => string.IsNullOrEmpty(s) || !revCurrency5Regex.IsMatch(s) ?
+             null : revCurrency5Regex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_currency_5", extractRevenueCurrency5);
+
+            Func<string, string, string> mergeRevCur1 = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
+            MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_currency_2", "revenue_currency_3", "revenue_currency_23", mergeRevCur1);
+            MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_currency_1", "revenue_currency_4", "revenue_currency_14", mergeRevCur1);
+            MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_currency_5", "revenue_currency_23", "revenue_currency_523", mergeRevCur1);
+            MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_currency_14", "revenue_currency_523", "revenue_currency", mergeRevCur1);
+
+            
+            // 5. Nb employees
+
+            // 6. Market cap
+
+            // 7. Asset
+
+
+            // 8. Net income
+
+            // 9. Operating income
+
+            // 10. CEO / chairman / founded / industry / country / headquarters
+
         }
 
-        private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
+    private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
         {
             var groups = regex.Match(input).Groups;
             return string.Join(sep, groups.Select(g => g.Value).ToArray());
