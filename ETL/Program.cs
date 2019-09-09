@@ -173,10 +173,33 @@ namespace ETL
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_currency_5", "revenue_currency_23", "revenue_currency_523", mergeRevCur1);
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_currency_14", "revenue_currency_523", "revenue_currency", mergeRevCur1);
 
-            
-            // 5. Nb employees
 
-            // 6. Market cap
+            // 5. Nb employees (year)
+
+            var nbEmployeeYearRegex = new Regex(@"\(\b(\d{4})\b\)", RegexOptions.Compiled);
+            Func<string, string> extractNbEmployeeYear = s => string.IsNullOrEmpty(s) || !nbEmployeeYearRegex.IsMatch(s) ?
+                 null : nbEmployeeYearRegex.Match(s).Groups[1].Value;
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees", "num_employees_year2", extractNbEmployeeYear);
+
+            var cleanNbEmployeeYearRegex = new Regex(@"(\b\d{4}\b)", RegexOptions.Compiled);
+            Func<string, string> cleanNbEmployeeYear = s => string.IsNullOrEmpty(s) || !cleanNbEmployeeYearRegex.IsMatch(s) ?
+                 null : cleanNbEmployeeYearRegex.Match(s).Groups[1].Value;
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees_year", cleanNbEmployeeYear);
+
+            Func<string, string, string> mergeNbEmployeesYear = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
+            MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees_year", "num_employees_year2", "num_employees_year3", mergeNbEmployeesYear);
+
+            //DeleteColumns(connectionString, dbName, "TestWikiCompanyDataRaw", new List<string>() { "num_employees_year", "num_employees_year2" });
+
+
+            // 6. Nb employees
+            var extractNbEmployeesRegex = new Regex(@"(\b\d[\d\.\s,]*\d\b)", RegexOptions.Compiled);
+            Func<string, string> extractNbEmployees = s => string.IsNullOrEmpty(s) || !extractNbEmployeesRegex.IsMatch(s) ?
+                 null : extractNbEmployeesRegex.Match(s).Groups[1].Value;
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees", extractNbEmployees);
+
+            // 7. Market cap
+
 
             // 7. Asset
 
@@ -189,7 +212,7 @@ namespace ETL
 
         }
 
-    private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
+        private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
         {
             var groups = regex.Match(input).Groups;
             return string.Join(sep, groups.Select(g => g.Value).ToArray());
