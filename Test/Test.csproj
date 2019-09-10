@@ -122,6 +122,10 @@
     <Compile Include="Migrations\201907110934402_AddReferenceToInfoboxIdInProperties.Designer.cs">
       <DependentUpon>201907110934402_AddReferenceToInfoboxIdInProperties.cs</DependentUpon>
     </Compile>
+    <Compile Include="Migrations\201909100954219_RenameKeyAndValueProperties.cs" />
+    <Compile Include="Migrations\201909100954219_RenameKeyAndValueProperties.Designer.cs">
+      <DependentUpon>201909100954219_RenameKeyAndValueProperties.cs</DependentUpon>
+    </Compile>
     <Compile Include="Migrations\Configuration.cs" />
     <Compile Include="MoreLinq\MoreEnumerable.Batch.cs" />
     <Compile Include="Program.cs" />
@@ -175,6 +179,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Migrations\201907110934402_AddReferenceToInfoboxIdInProperties.resx">
       <DependentUpon>201907110934402_AddReferenceToInfoboxIdInProperties.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Migrations\201909100954219_RenameKeyAndValueProperties.resx">
+      <DependentUpon>201909100954219_RenameKeyAndValueProperties.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

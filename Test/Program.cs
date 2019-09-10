@@ -194,7 +194,7 @@ namespace Test
         }
 
         /// <summary>
-        /// Extracted from wikipedia dumps (setp 1/3).
+        /// Extracted from wikipedia dumps (step 1/3).
         /// Browse the wiki dumps and extract the markdown for each company infobox.
         /// </summary>
         private static void ParseCompanyInfoboxesInDumps()
