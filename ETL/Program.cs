@@ -160,15 +160,7 @@ namespace ETL
             var opIncomeYearRegex = new Regex(@"\(\b(\d{4})\b\)", RegexOptions.Compiled);
             Func<string, string> extractOpIncomeYear = s => string.IsNullOrEmpty(s) || !opIncomeYearRegex.IsMatch(s) ?
                  null : opIncomeYearRegex.Match(s).Groups[1].Value;
-            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income", "operating_income_year2", extractOpIncomeYear);
-
-            var cleanOpIncomeYearRegex = new Regex(@"(\b\d{4}\b)", RegexOptions.Compiled);
-            Func<string, string> cleanOpIncomeYear = s => string.IsNullOrEmpty(s) || !cleanOpIncomeYearRegex.IsMatch(s) ?
-                 null : cleanOpIncomeYearRegex.Match(s).Groups[1].Value;
-            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income_year", cleanOpIncomeYear);
-
-            Func<string, string, string> mergeOpIncomeYear = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
-            MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income_year", "operating_income_year2", "operating_income_year3", mergeOpIncomeYear);
+            ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income", "operating_income_year", extractOpIncomeYear);
 
             // 10. Operating income (amount)
             ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income", "operating_income_amount", 
@@ -188,9 +180,10 @@ namespace ETL
 
 
             // 12. Country
+            // TODO: catch cases such as {{nowrap|United States}}, (Germany), {{unbulleted list|Israel}}...
             var cleanLocationCountryRegex = new Regex(@"\[\[([^\|\]]+)(?:\|[^\]]+)?\]\]", RegexOptions.Compiled);
             Func<string, string> cleanLocationCountry = s => string.IsNullOrEmpty(s) || !cleanLocationCountryRegex.IsMatch(s) ?
-                 null : cleanOpIncomeYearRegex.Match(s).Groups[1].Value;
+                 null : cleanLocationCountryRegex.Match(s).Groups[1].Value;
             TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "location_country", cleanLocationCountry);
 
             var cleanHqLocationCountryRegex = new Regex(@"\[\[([^\|\]]+)(?:\|[^\]]+)?\]\]", RegexOptions.Compiled);
@@ -202,10 +195,14 @@ namespace ETL
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "location_country", "hq_location_country", "hq_country", mergeLocCountry);
 
 
-            // 10. CEO / chairman / founded / headquarters
-
-
-            // TODO: assets, market_cap (never filled correctly on a 25k sample)
+            // TODO: 
+            // - assets
+            // - market_cap (never filled correctly on a 25k sample)
+            // - CEO
+            // - type (public, private...)
+            // - chairman
+            // - founded 
+            // - headquarters
 
         }
 
