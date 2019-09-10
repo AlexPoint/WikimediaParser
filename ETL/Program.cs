@@ -109,6 +109,8 @@ namespace ETL
 
             DeleteColumns(connectionString, dbName, "TestWikiCompanyDataRaw", new List<string>() { "caption", "revenue_year2" });
 
+            RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_year3", "revenue_year");
+
             // Revenue
 
             ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_amount", "revenue_currency", "revenue_src_url");
@@ -129,6 +131,7 @@ namespace ETL
             Func<string, string, string> mergeNbEmployeesYear = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees_year", "num_employees_year2", "num_employees_year3", mergeNbEmployeesYear);
 
+            RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees_year3", "num_employees_year");
             //DeleteColumns(connectionString, dbName, "TestWikiCompanyDataRaw", new List<string>() { "num_employees_year", "num_employees_year2" });
 
 
@@ -151,6 +154,8 @@ namespace ETL
 
             Func<string, string, string> mergeNetIncomeYear = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "net_income_year", "net_income_year2", "net_income_year3", mergeNetIncomeYear);
+
+            RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "net_income_year3", "net_income_year");
 
             // 8. Net income (amount)
             ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "net_income", "net_income_amount", "net_income_currency", "net_income_src_url");
@@ -204,6 +209,28 @@ namespace ETL
             // - founded 
             // - headquarters
 
+
+            var columnsToKeep = new List<string>() { "isin",
+                "revenue_year",
+                "revenue_amount",
+                "revenue_src_url",
+                "revenue",
+                "revenue_currency",
+                "num_employees_year",
+                "num_employees",
+                "net_income_year",
+                "net_income_amount",
+                "net_income_src_url",
+                "net_income",
+                "net_income_currency",
+                "operating_income_year",
+                "operating_income_amount",
+                "operating_income_src_url",
+                "operating_income",
+                "operating_income_currency",
+                "industry",
+                "hq_country"};
+            KeepOnlyColumns(connectionString, dbName, "TestWikiCompanyDataRaw", columnsToKeep);
         }
 
 
@@ -296,6 +323,17 @@ namespace ETL
                 string.Format("DELETE from [{0}] where {1} in (select {1} from [{0}] group by {1} having count(*) <= {2})",
                 table, column, threshold));
             deleteQuery.Execute();
+        }
+
+        private static void KeepOnlyColumns(string connectionString, string db, string table, List<string> columns)
+        {
+            // Create control flow 
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            var existingColumns = GetTableColumns(connectionString, db, table);
+            var columnsToDelete = existingColumns.Where(col => !columns.Contains(col.Name)).Select(col => col.Name).ToList();
+
+            DeleteColumns(connectionString, db, table, columnsToDelete);
         }
 
         private static void DeleteColumns(string connectionString, string db, string table, List<string> columns)
@@ -692,6 +730,25 @@ namespace ETL
             getTables.ExecuteReader();
 
             return tables;
+        }
+
+        private static void RenameColumn(string connectionString, string db, string table, string column, string newColumn)
+        {
+            EtlFlowLogger.Info("------------");
+            EtlFlowLogger.Info("Executing RenameColumn task (table = {0}, column = {1})", table, column);
+
+            // Create control flow and db (should already exist)
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
+            CreateDatabaseTask.Create(db);
+            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
+
+            // TODO: check the existence of the table and the column, otherwise return
+            // TODO: check the non-existence of the target column
+
+            var alterTableTask = new SqlTask("Rename column", string.Format(@"EXEC sp_RENAME '[{0}].[{1}]', '{2}', 'COLUMN';", table, column, newColumn));
+            alterTableTask.Execute();
+
+            EtlFlowLogger.Info("End of execution of TransformColumn task");
         }
 
         private static string TransformColumn(string connectionString, string db, string table, string column, Func<string, string> transform)
