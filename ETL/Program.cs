@@ -210,23 +210,27 @@ namespace ETL
             // - headquarters
 
 
-            var columnsToKeep = new List<string>() { "isin",
+            RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "PageTitle", "wiki_name");
+
+            var columnsToKeep = new List<string>() { "wiki_name",
+                "name",
+                "isin",
                 "revenue_year",
                 "revenue_amount",
                 "revenue_src_url",
-                "revenue",
+                //"revenue",
                 "revenue_currency",
                 "num_employees_year",
                 "num_employees",
                 "net_income_year",
                 "net_income_amount",
                 "net_income_src_url",
-                "net_income",
+                //"net_income",
                 "net_income_currency",
                 "operating_income_year",
                 "operating_income_amount",
                 "operating_income_src_url",
-                "operating_income",
+                //"operating_income",
                 "operating_income_currency",
                 "industry",
                 "hq_country"};
