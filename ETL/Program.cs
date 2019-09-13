@@ -86,6 +86,7 @@ namespace ETL
             // Specific delete query
             DeleteInfrequentInfoboxProperties(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", 100);*/
 
+
             PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.TestWikiCompanyDataRaw");
 
             // ISIN number
@@ -141,6 +142,10 @@ namespace ETL
                  null : extractNbEmployeesRegex.Match(s).Groups[1].Value;
             TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees", extractNbEmployees);
 
+            var cleanNbEmployeesRegex = new Regex(@"[^\d]+", RegexOptions.Compiled);
+            Func<string, string> cleanNbEmployees = s => string.IsNullOrEmpty(s) ? null : cleanNbEmployeesRegex.Replace(s, "");
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees", cleanNbEmployees);
+
             // 7. Net income (year)
             var netIncomeYearRegex = new Regex(@"\(\b(\d{4})\b\)", RegexOptions.Compiled);
             Func<string, string> extractNetIncomeYear = s => string.IsNullOrEmpty(s) || !netIncomeYearRegex.IsMatch(s) ?
@@ -183,6 +188,22 @@ namespace ETL
             Func<string, string> cleanIndustry2 = s => string.IsNullOrEmpty(s) ? null : cleanIndustryRegex2.Replace(s, ", ");
             TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "industry", cleanIndustry2);
 
+            var cleanIndustryRegex3 = new Regex(@"([\s\n]+)?\*([\s\n]+)?", RegexOptions.Compiled);
+            Func<string, string> cleanIndustry3 = s => string.IsNullOrEmpty(s) ? null : cleanIndustryRegex3.Replace(s, ", ");
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "industry", cleanIndustry3);
+
+            var cleanIndustryRegex4 = new Regex(@"\{\{[^\}]+list\s*\|[\n\s]*([^\n\}]*)", RegexOptions.Compiled);
+            Func<string, string> cleanIndustry4 = s => string.IsNullOrEmpty(s) || !cleanIndustryRegex4.IsMatch(s) ?
+                s : cleanIndustryRegex4.Match(s).Groups[1].Value;
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "industry", cleanIndustry4);
+
+            Func<string, string> cleanIndustry5 = s => string.IsNullOrEmpty(s) ? null : s.Trim(new char[] { ' ', ',' });
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "industry", cleanIndustry5);
+
+            var cleanIndustryRegex6 = new Regex(@"^([\w\s\-&,\(\)]+)", RegexOptions.Compiled);
+            Func<string, string> cleanIndustry6 = s => string.IsNullOrEmpty(s) || !cleanIndustryRegex6.IsMatch(s) ?
+                null : cleanIndustryRegex6.Match(s).Groups[1].Value;
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "industry", cleanIndustry6);
 
             // 12. Country
             // TODO: catch cases such as {{nowrap|United States}}, (Germany), {{unbulleted list|Israel}}...
