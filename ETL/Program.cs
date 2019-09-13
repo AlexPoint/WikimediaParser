@@ -223,7 +223,7 @@ namespace ETL
 
             // 13. Name
             // 
-            var cleanNameRegex1 = new Regex("^([\\w\\s\\-&,\\\"\\.]+)", RegexOptions.Compiled);
+            var cleanNameRegex1 = new Regex("^([^<]+)", RegexOptions.Compiled);
             Func<string, string> cleanName1 = s => string.IsNullOrEmpty(s) || !cleanNameRegex1.IsMatch(s) ?
                 null : cleanNameRegex1.Match(s).Groups[1].Value;
             TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "name", cleanName1);
