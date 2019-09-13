@@ -153,7 +153,7 @@ namespace Test
         /// </summary>
         private static void ProcessCompanyInfoboxes()
         {
-            var batchSize = 10;
+            var batchSize = 1000;
             var index = 0;
             using (var db = new WikiContext())
             {
@@ -168,8 +168,8 @@ namespace Test
 
                     foreach (var infobox in infoboxes)
                     {
-                        //var parts = infobox.Markdown.Split(new string[] { "|\n", "\n|" }, StringSplitOptions.RemoveEmptyEntries).ToList();
-                        var parts = Regex.Split(infobox.Markdown, @"(\n\s*\||\|\s*\n)(?=[\sa-zA-Z_]+=)").ToList();
+                        var markdownRegex = new Regex(@"(\n\s*\||\|\s*\n)(?=[\sa-zA-Z_]+=)", RegexOptions.Compiled);
+                        var parts = markdownRegex.Split(infobox.Markdown).ToList();
                         var properties = parts.Where(line => line.Contains("="))
                             .Select(line => line.Split(new char[] { '=' }, 2))
                             .Select(tup => new RawInfoboxProperty
