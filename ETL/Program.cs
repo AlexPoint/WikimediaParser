@@ -221,6 +221,18 @@ namespace ETL
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "location_country", "hq_location_country", "hq_country", mergeLocCountry);
 
 
+            // 13. Name
+            // 
+            var cleanNameRegex1 = new Regex("^([\\w\\s\\-&,\\\"\\.]+)", RegexOptions.Compiled);
+            Func<string, string> cleanName1 = s => string.IsNullOrEmpty(s) || !cleanNameRegex1.IsMatch(s) ?
+                null : cleanNameRegex1.Match(s).Groups[1].Value;
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "name", cleanName1);
+
+            Func<string, string> cleanName2 = s => string.IsNullOrEmpty(s) ?
+                null : s.Replace("\"", "'");
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "name", cleanName2);
+
+
             // TODO: 
             // - assets
             // - market_cap (never filled correctly on a 25k sample)
@@ -288,13 +300,13 @@ namespace ETL
             // 4. Extract the currency
             // Multiple passes to cover most cases
             // 
-            var cleanRevCurRegex = new Regex(@"\{\{0\}\}", RegexOptions.Compiled);
+            var cleanRevCurRegex = new Regex(@"\{\{0(\|0+)?\}\}", RegexOptions.Compiled);
             Func<string, string> cleanRevCur = s => string.IsNullOrEmpty(s) || !cleanRevCurRegex.IsMatch(s) ?
                   s : cleanRevCurRegex.Replace(s, "");
             TransformColumn(connectionString, dbName, table, srcColumn, cleanRevCur);
 
             var tgtColCur1 = tgtColumnAmount + "_1";
-            var revCurrency1Regex = new Regex(@"\[\[([^\|]+)(?:\|[^\]]+)?\]\](?:[\$£€])?((?:\-)?[\d\.\s,]+[\s]+(?:million|billion))", RegexOptions.Compiled);
+            var revCurrency1Regex = new Regex(@"\[\[([^\|\]]+)(?:\|[^\]]+)?\]\](?:[\$£€])?((?:\-)?[\d\.\s,]+[\s]+(?:million|billion))", RegexOptions.Compiled);
             Func<string, string> extractRevenueCurrency1 = s => string.IsNullOrEmpty(s) || !revCurrency1Regex.IsMatch(s) ?
                  null : revCurrency1Regex.Match(s).Groups[1].Value;
             ExtractFromColumn(connectionString, dbName, table, srcColumn, tgtColCur1, extractRevenueCurrency1);
