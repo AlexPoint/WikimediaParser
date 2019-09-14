@@ -43,27 +43,9 @@ namespace ETL
             IConfiguration config = new ConfigurationBuilder()
                 .AddJsonFile("appsettings.json", true, true)
                 .Build();
+
             var connectionString = config["connectionString"];
-
-            //var timestamp = DateTime.Now.ToString("yyyyMMdd");
-            //var dbName = string.Format("tucdb_{0}", timestamp);
             var dbName = "tucdb";
-
-            var csvFilePath = "C:/Users/Alex/Documents/Github/WikimediaParser/Test/Results/wiki-dumps-infoboxes-1.csv";
-
-            /*WikiCsvToRaw(connectionString, dbName, csvFilePath, "dbo.WikiInfoboxPropertiesRaw");
-            Console.WriteLine("=======================");
-            // Add some cleaning steps for markdown here
-            CleanInfoboxPropertyNames(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.WikiInfoboxPropertiesRaw1");
-
-            PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw1", "dbo.WikiCompanyDataRaw");*/
-
-            //PostProcessWikiCompanyData(connectionString, dbName, "dbo.WikiCompanyDataRaw", "dbo.WikiCompanyData");
-
-
-            // ----------------------------------------------------------------------------------------
-            // Code for loading a SQL table in a C# object
-            //var dataset = LoadIntoDataset(connectionString, dbName, "dbo.WikiCompanyDataRaw");
 
             // ----------------------------------------------------------------------------------------
             // 1. Copying another database with the raw infobox properties, i.e:
@@ -122,7 +104,7 @@ namespace ETL
             RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_year3", "revenue_year");
 
             // Revenue
-            ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_amount", "revenue_currency", "revenue_src_url");
+            ExtractInformationFromMoneyColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_amount", "revenue_currency", "revenue_src_url");
             
             // 5. Nb employees (year)
             var nbEmployeeYearRegex = new Regex(@"\(\b(\d{4})\b\)", RegexOptions.Compiled);
@@ -167,7 +149,7 @@ namespace ETL
             RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "net_income_year3", "net_income_year");
 
             // 8. Net income (amount)
-            ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "net_income", "net_income_amount", "net_income_currency", "net_income_src_url");
+            ExtractInformationFromMoneyColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "net_income", "net_income_amount", "net_income_currency", "net_income_src_url");
             
             // 9. Operating income (year)
             var opIncomeYearRegex = new Regex(@"\(\b(\d{4})\b\)", RegexOptions.Compiled);
@@ -176,7 +158,7 @@ namespace ETL
             ExtractFromColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income", "operating_income_year", extractOpIncomeYear);
 
             // 10. Operating income (amount)
-            ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income", "operating_income_amount", 
+            ExtractInformationFromMoneyColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income", "operating_income_amount", 
                 "operating_income_currency", "operating_income_src_url");
             
             // 11. Industry
@@ -269,7 +251,16 @@ namespace ETL
         }
 
 
-        private static void ExtractCurrencyAndAmount(string connectionString, string dbName, string table, 
+        /// <summary>
+        /// Extract the currency and the amount of a wikipedia infobox property, taking into account 
+        /// the multiple format of a money column.
+        /// For instance, the 'revenue' column '$19.692 [[1000000000 (number)|billion]] {{cite web|title=Sytner reports|url=http://www.am-online.com/news/dealer-news/2016/10/24/sytner-reports-record-profits-warns-of-drop-in-post-brexit-consumer-confidence|website=Automotive Management|publisher=AM-Online|accessdate=18 August 2017}})' 
+        /// will be extracted to:
+        /// - 'revenue_amount': '19.692 billion'
+        /// - 'revenue_currency': '$'
+        /// - 'revenue_src_url': 'http://www.am-online.com/news/dealer-news/2016/10/24/sytner-reports-record-profits-warns-of-drop-in-post-brexit-consumer-confidence'
+        /// </summary>
+        private static void ExtractInformationFromMoneyColumn(string connectionString, string dbName, string table, 
             string srcColumn, string tgtColumnAmount, string tgtColumnCurrency, string tgtColumnSrcUrl)
         {
             // 1. Clean the units with Wiki links (e.g. $19.692 [[1000000000 (number)|billion]] -> $19.692 billion)
@@ -339,13 +330,11 @@ namespace ETL
             MergeColumns(connectionString, dbName, table, tgtColCur5, "col_currency_23", "col_currency_523", mergeCurrencyColumns);
             MergeColumns(connectionString, dbName, table, "col_currency_14", "col_currency_523", tgtColumnCurrency, mergeCurrencyColumns);
         }
-
-        private static string CombineRegexMatchGroups(Regex regex, string input, char sep = ' ')
-        {
-            var groups = regex.Match(input).Groups;
-            return string.Join(sep, groups.Select(g => g.Value).ToArray());
-        }
-
+        
+        /// <summary>
+        /// Delete the infobox properties which occur few times in the whole Wikipedia corpus.
+        /// This also helps ignoring spelling mistakes.
+        /// </summary>
         private static void DeleteInfrequentInfoboxProperties(string connectionString, string db, string table, string column, int threshold)
         {
             // Create control flow
@@ -360,6 +349,9 @@ namespace ETL
             deleteQuery.Execute();
         }
 
+        /// <summary>
+        /// Delete all the columns of a given table except the ones listed in the 'columns' parameter.
+        /// </summary>
         private static void KeepOnlyColumns(string connectionString, string db, string table, List<string> columns)
         {
             // Create control flow 
@@ -371,6 +363,9 @@ namespace ETL
             DeleteColumns(connectionString, db, table, columnsToDelete);
         }
 
+        /// <summary>
+        /// Delete specific columns in a given SQL table.
+        /// </summary>
         private static void DeleteColumns(string connectionString, string db, string table, List<string> columns)
         {
             // Create control flow 
@@ -394,6 +389,9 @@ namespace ETL
             }
         }
 
+        /// <summary>
+        /// Lists all the columns of a given SQL table.
+        /// </summary>
         private static List<TableColumn> GetTableColumns(string connectionString, string db, string table)
         {
             // Read data from SQL server
@@ -442,97 +440,17 @@ namespace ETL
             return cols;
         }
 
-        private static Dataset LoadIntoDataset(string connectionString, string dbName, string srcTable)
-        {
-            // Read data from SQL server
-            var dataTable = new DataTable();
-
-            var conn = new SqlConnection(string.Format("{0};Database={1}", connectionString, dbName));
-            try
-            {
-                conn.Open();
-                var selectQuery = string.Format("SELECT * FROM {0};", srcTable);
-                var command = new SqlCommand(selectQuery, conn);
-                using (var adapter = new SqlDataAdapter(command))
-                {
-                    adapter.Fill(dataTable);
-                }
-
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-                throw ex;
-            }
-            finally
-            {
-                if (conn.State == ConnectionState.Open)
-                    conn.Close();
-            }
-
-
-            // Put the results in memory (column names, and then data)
-            int icolcount = dataTable.Columns.Count;
-
-            var cols = new List<string>();
-            for (int i = 0; i < icolcount; i++)
-            {
-                cols.Add(dataTable.Columns[i].ToString());
-            }
-
-            var rows = new List<string[]>();
-            foreach (DataRow drow in dataTable.Rows)
-            {
-                var row = new string[icolcount];
-                for (int i = 0; i < icolcount; i++)
-                {
-                    if (!Convert.IsDBNull(drow[i]))
-                        row[i] = drow[i].ToString();
-                }
-                rows.Add(row);
-            }
-
-            return new Dataset()
-            {
-                Columns = cols.ToArray(),
-                Data = rows
-            };
-        }
-
-
-        private static void EtlTransformation<T, U>(string connectionString, string dbName, string srcTable, string tgtTable,
-            DBSource<T> source, RowTransformation<T,U> trans, DBDestination<U> dest)
-        {
-            // Create control flow
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
-
-            // Create database
-            CreateDatabaseTask.Create(dbName);
-
-            // Create table for Forbes 2018 company data
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
-
-            // TODO: move this code which shouldn't be here. 
-            // Ideally, tables should configure themselves automatically to avoid this kind of code for schema changes.
-            DropTableTask.Drop(tgtTable);
-            CreateTableTask.Create(tgtTable, new List<TableColumn>()
-            {
-                new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
-                new TableColumn("Name", "nvarchar(max)", allowNulls: true),
-                new TableColumn("Revenue", "nvarchar(max)", allowNulls: true),
-                new TableColumn("RevenueYear", "nvarchar(max)", allowNulls: true)
-            });
-
-            source.LinkTo(trans);
-            trans.LinkTo(dest);
-
-            source.Execute();
-            dest.Wait();
-
-            int rowCount = RowCountTask.Count(tgtTable).Value;
-            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
-        }
-
+        /// <summary>
+        /// Merge two columns of a given SQL table based on a merge function.
+        /// </summary>
+        /// <param name="connectionString">The connection string to the database</param>
+        /// <param name="db">The name of the database</param>
+        /// <param name="table">The name of the SQL table</param>
+        /// <param name="srcColumn1">The first column to merge</param>
+        /// <param name="srcColumn2">The second column to merge</param>
+        /// <param name="tgtColumn">The target column which will receive the result of the merge</param>
+        /// <param name="merge">The merge function, i.e. how the two columns should be merged</param>
+        /// <returns></returns>
         public static string MergeColumns(string connectionString, string db, string table, string srcColumn1, string srcColumn2, string tgtColumn, 
             Func<string, string, string> merge)
         {
@@ -645,6 +563,10 @@ namespace ETL
             return table;
         }
 
+        /// <summary>
+        /// Extracts from a given source column to a target column.
+        /// The source column is left untouched; the target column is freshly created.
+        /// </summary>
         public static string ExtractFromColumn(string connectionString, string db, string table, string srcColumn, string tgtColumn, Func<string,string> extract)
         {
             EtlFlowLogger.Info("------------");
@@ -743,18 +665,27 @@ namespace ETL
             return table;
         }
 
+        /// <summary>
+        /// Checks if a column exists in a given table.
+        /// </summary>
         private static bool DoesColumnExist(string connectionString, string db, string table, string column)
         {
             var columns = GetTableColumns(connectionString, db, table);
             return columns.Any(c => c.Name == column);
         }
 
+        /// <summary>
+        /// Checks if a table exists in a given database
+        /// </summary>
         private static bool DoesTableExist(string connectionString, string db, string table)
         {
             var tables = GetTables(connectionString, db);
             return tables.Any(t => t == table);
         }
 
+        /// <summary>
+        /// Lists all the tables in a given database.
+        /// </summary>
         private static List<string> GetTables(string connectionString, string db)
         {
             ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, db)));
@@ -767,6 +698,9 @@ namespace ETL
             return tables;
         }
 
+        /// <summary>
+        /// Renames a given column of a SQL table
+        /// </summary>
         private static void RenameColumn(string connectionString, string db, string table, string column, string newColumn)
         {
             EtlFlowLogger.Info("------------");
@@ -786,6 +720,15 @@ namespace ETL
             EtlFlowLogger.Info("End of execution of TransformColumn task");
         }
 
+        /// <summary>
+        /// Transforms the values in a given column, following a transform function.
+        /// </summary>
+        /// <param name="connectionString">The connection string for the database</param>
+        /// <param name="db">The name of the database</param>
+        /// <param name="table">The name of the table</param>
+        /// <param name="column">The column to be trasnformed</param>
+        /// <param name="transform">The transform function</param>
+        /// <returns></returns>
         private static string TransformColumn(string connectionString, string db, string table, string column, Func<string, string> transform)
         {
             EtlFlowLogger.Info("------------");
@@ -880,25 +823,6 @@ namespace ETL
             return table;
         }
 
-        private static void PostProcessWikiCompanyData(string connectionString, string dbName, string srcTable, string tgtTable)
-        {
-            var source = new DBSource<WikiCompanyData>(string.Format(@"
-                select ID, name, revenue, revenue_year
-                from {0}", srcTable));
-            var regexString = @"\((\d{4})\)";
-            var trans = new RowTransformation<WikiCompanyData, WikiCompanyData>(
-                myRow => new WikiCompanyData
-                {
-                    Name = myRow.Name,
-                    Revenue = myRow.Revenue == null ? "" : Regex.Replace(myRow.Revenue, regexString, ""),
-                    RevenueYear = myRow.Revenue == null ? myRow.RevenueYear : 
-                        Regex.IsMatch(myRow.Revenue, regexString) ? Regex.Match(myRow.Revenue, regexString).Groups[1].Value: myRow.RevenueYear
-                }); ;
-            var dest = new DBDestination<WikiCompanyData>(tgtTable);
-
-            // Execute the data transformation
-            EtlTransformation<WikiCompanyData, WikiCompanyData>(connectionString, dbName, srcTable, tgtTable, source, trans, dest);
-        }
 
         /// <summary>
         /// Copies the source database table, and all its content, to the target table.
@@ -932,100 +856,11 @@ namespace ETL
             destination.Wait();
         }
 
-        private static void WikiCsvToRaw(string connectionString, string dbName, string csvFilePath, string tgtTable)
-        {
-            // Create control flow
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(connectionString);
-
-            // Create database
-            DropDatabaseTask.Drop(dbName);
-            CreateDatabaseTask.Create(dbName);
-
-            // Create table for Forbes 2018 company data
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
-
-            DropTableTask.Drop(tgtTable);
-            CreateTableTask.Create(tgtTable, new List<TableColumn>()
-            {
-                new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
-                new TableColumn("PageTitle", "nvarchar(max)", allowNulls: false),
-                new TableColumn("InfoboxId", "nvarchar(max)", allowNulls: true),
-                new TableColumn("PropKey", "nvarchar(max)", allowNulls: true),
-                new TableColumn("PropValue", "nvarchar(max)", allowNulls: true)
-            });
-
-            // Load CSV file into SQL 
-            CSVSource source = new CSVSource(csvFilePath);
-            source.Configuration.Delimiter = "\t";
-            source.SkipRows = 1; // skip header
-
-            var row = new RowTransformation<string[], RawInfoboxProperty>
-            (
-                // exclude incorrect csv lines to avoid exception below
-                input => input.Length != 4 ? null : new RawInfoboxProperty()
-                {
-                    PageTitle = input[0],
-                    InfoboxId = input[1],
-                    PropKey = input[2],
-                    PropValue = input[3]
-                }
-            );
-            var dest = new DBDestination<RawInfoboxProperty>(tgtTable);
-
-            source.LinkTo(row);
-            row.LinkTo(dest);
-
-            source.Execute();
-            dest.Wait();
-
-            int rowCount = RowCountTask.Count(tgtTable).Value;
-            Console.WriteLine("Inserted {0} rows in {1}", rowCount, tgtTable);
-        }
-
-        private static void CleanInfoboxPropertyNames(string connectionString, string dbName, string srcTable, string tgtTable)
-        {
-            // Create control flow
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
-
-            // Create database
-            CreateDatabaseTask.Create(dbName);
-
-            // Create table for Forbes 2018 company data
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
-
-            CreateTableTask.Create(tgtTable, new List<TableColumn>()
-            {
-                new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
-                new TableColumn("PageTitle", "nvarchar(max)", allowNulls: false),
-                new TableColumn("InfoboxId", "nvarchar(max)", allowNulls: true),
-                new TableColumn("PropKey", "nvarchar(max)", allowNulls: true),
-                new TableColumn("PropValue", "nvarchar(max)", allowNulls: true)
-            });
-
-            var source = new DBSource<RawInfoboxProperty>(string.Format(@"
-                select ID, PageTitle, InfoboxId, PropKey, PropValue
-                from {0}", srcTable));
-            var trans = new RowTransformation<RawInfoboxProperty, RawInfoboxProperty>(
-                myRow => new RawInfoboxProperty
-                {
-                    PageTitle = myRow.PageTitle,
-                    InfoboxId = myRow.InfoboxId,
-                    PropKey = Regex.Replace(myRow.PropKey, @"[^a-zA-Z]+", "_"),
-                    PropValue = myRow.PropValue
-                });
-            var dest = new DBDestination<RawInfoboxProperty>(tgtTable);
-
-            source.LinkTo(trans);
-            trans.LinkTo(dest);
-
-            source.Execute();
-            dest.Wait();
-
-            int rowCount = RowCountTask.Count(tgtTable).Value;
-            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
-        }
-
-
+        /// <summary>
+        /// Pivot a SQL table of raw infobox properties (one row per property) to SQL table
+        /// of company (one row per company/infobox).
+        /// This code is very specific to the SQL table and cannot be reused for tables with a different schema.
+        /// </summary>
         private static void PivotProperties(string connectionString, string dbName, string srcTable, string tgtTable)
         {
             // Create control flow
@@ -1095,47 +930,6 @@ exec(@query)", srcTable, tgtTable);
             Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
         }
 
-        private static void DeleteEmptyProperties(string connectionString, string dbName, string srcTable, string tgtTable)
-        {
-            // Create control flow
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(connectionString));
-
-            // Create database
-            CreateDatabaseTask.Create(dbName);
-
-            // Create table for Forbes 2018 company data
-            ControlFlow.CurrentDbConnection = new SqlConnectionManager(new ConnectionString(string.Format("{0};Initial Catalog={1}", connectionString, dbName)));
-
-            // Copy the table
-            DropTableTask.Drop(tgtTable);
-            CreateTableTask.Create(tgtTable, new List<TableColumn>()
-            {
-                new TableColumn("ID", "int", allowNulls: false, isPrimaryKey:true, isIdentity:true),
-                new TableColumn("PageTitle", "nvarchar(max)", allowNulls: false),
-                new TableColumn("InfoboxId", "nvarchar(max)", allowNulls: true),
-                new TableColumn("PropKey", "nvarchar(max)", allowNulls: true),
-                new TableColumn("PropValue", "nvarchar(max)", allowNulls: true)
-            });
-
-            var source = new DBSource<RawInfoboxProperty>(string.Format(@"
-                select ID, PageTitle, InfoboxId, PropKey, PropValue 
-                from {0}", srcTable));
-            var trans = new RowTransformation<RawInfoboxProperty, RawInfoboxProperty>(
-                myRow => myRow);
-            var dest = new DBDestination<RawInfoboxProperty>(tgtTable);
-
-            source.LinkTo(trans);
-            trans.LinkTo(dest);
-
-            source.Execute();
-            dest.Wait();
-
-
-            SqlTask.ExecuteNonQuery("DROP empty properties", string.Format("DELETE FROM {0} WHERE PropValue = ''", tgtTable));
-
-            int rowCount = RowCountTask.Count(tgtTable).Value;
-            Console.WriteLine("Inserted {0} rows in table '{1}'", rowCount, tgtTable);
-        }
 
         // Forbes data ETL ------------------------------------------------------------------------------------------------------
 
