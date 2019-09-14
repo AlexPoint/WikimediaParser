@@ -66,11 +66,15 @@ namespace ETL
             //var dataset = LoadIntoDataset(connectionString, dbName, "dbo.WikiCompanyDataRaw");
 
             // ----------------------------------------------------------------------------------------
-            // Test complete abstraction by configuring only column transformations (and not the tables)
+            // 1. Copying another database with the raw infobox properties, i.e:
+            // - the wikipedia page title
+            // - the infobox property key (e.g. revenues)
+            // - the infobox property values (e.g. 165 billion [[USD]]
+            // - the infobox id (a few pages have multiple infoboxes)
 
             // Load directly infobox properties from db wikiboxes, table RawInfoboxProperties as ETLBox allows transfer between databases.
             // (we were using csv files as an intermediate step before but it triggered issues due to badly form CSV rows).
-            /*CopyTable(connectionString, "wikiboxes", "dbo.RawInfoboxProperties", connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw");
+            CopyTable(connectionString, "wikiboxes", "dbo.RawInfoboxProperties", connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw");
 
             // Infobox property keys do not always meet the Wiki standards (see https://en.wikipedia.org/wiki/Template:Infobox_company)
             // As a result, we "clean" the names here.
@@ -84,10 +88,15 @@ namespace ETL
             TransformColumn(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", t4);
 
             // Specific delete query
-            DeleteInfrequentInfoboxProperties(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", 100);*/
+            DeleteInfrequentInfoboxProperties(connectionString, dbName, "WikiInfoboxPropertiesRaw", "PropKey", 100);
 
+            // ----------------------------------------------------------------------------------------
+            // 2. Pivot properties to have one row per infobox company
 
             PivotProperties(connectionString, dbName, "dbo.WikiInfoboxPropertiesRaw", "dbo.TestWikiCompanyDataRaw");
+
+            // ----------------------------------------------------------------------------------------
+            // 3. Clean the infobox properties that we want to keep.
 
             // ISIN number
             var isinRegex = new Regex("^[A-Z\\d]{12}$", RegexOptions.Compiled);
@@ -113,12 +122,9 @@ namespace ETL
             RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue_year3", "revenue_year");
 
             // Revenue
-
             ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "revenue", "revenue_amount", "revenue_currency", "revenue_src_url");
-
-
+            
             // 5. Nb employees (year)
-
             var nbEmployeeYearRegex = new Regex(@"\(\b(\d{4})\b\)", RegexOptions.Compiled);
             Func<string, string> extractNbEmployeeYear = s => string.IsNullOrEmpty(s) || !nbEmployeeYearRegex.IsMatch(s) ?
                  null : nbEmployeeYearRegex.Match(s).Groups[1].Value;
@@ -133,9 +139,7 @@ namespace ETL
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees_year", "num_employees_year2", "num_employees_year3", mergeNbEmployeesYear);
 
             RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "num_employees_year3", "num_employees_year");
-            //DeleteColumns(connectionString, dbName, "TestWikiCompanyDataRaw", new List<string>() { "num_employees_year", "num_employees_year2" });
-
-
+            
             // 6. Nb employees
             var extractNbEmployeesRegex = new Regex(@"(\b\d[\d\.\s,]*\d\b)", RegexOptions.Compiled);
             Func<string, string> extractNbEmployees = s => string.IsNullOrEmpty(s) || !extractNbEmployeesRegex.IsMatch(s) ?
@@ -164,8 +168,7 @@ namespace ETL
 
             // 8. Net income (amount)
             ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "net_income", "net_income_amount", "net_income_currency", "net_income_src_url");
-
-
+            
             // 9. Operating income (year)
             var opIncomeYearRegex = new Regex(@"\(\b(\d{4})\b\)", RegexOptions.Compiled);
             Func<string, string> extractOpIncomeYear = s => string.IsNullOrEmpty(s) || !opIncomeYearRegex.IsMatch(s) ?
@@ -175,8 +178,7 @@ namespace ETL
             // 10. Operating income (amount)
             ExtractCurrencyAndAmount(connectionString, dbName, "TestWikiCompanyDataRaw", "operating_income", "operating_income_amount", 
                 "operating_income_currency", "operating_income_src_url");
-
-
+            
             // 11. Industry
             var cleanIndustryRegex = new Regex(@"\[\[([^\|\]]+)(?:\|[^\]]+)?\]\]", RegexOptions.Compiled);
             Func<string, string> cleanIndustry = s => string.IsNullOrEmpty(s) ?
@@ -219,10 +221,8 @@ namespace ETL
 
             Func<string, string, string> mergeLocCountry = (s1, s2) => !string.IsNullOrEmpty(s1) ? s1 : s2;
             MergeColumns(connectionString, dbName, "TestWikiCompanyDataRaw", "location_country", "hq_location_country", "hq_country", mergeLocCountry);
-
-
-            // 13. Name
-            // 
+            
+            // 13. Name & PageTitle
             var cleanNameRegex1 = new Regex("^([^<]+)", RegexOptions.Compiled);
             Func<string, string> cleanName1 = s => string.IsNullOrEmpty(s) || !cleanNameRegex1.IsMatch(s) ?
                 null : cleanNameRegex1.Match(s).Groups[1].Value;
@@ -231,9 +231,9 @@ namespace ETL
             Func<string, string> cleanName2 = s => string.IsNullOrEmpty(s) ?
                 null : s.Replace("\"", "'");
             TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "name", cleanName2);
+            TransformColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "PageTitle", cleanName2);
 
-
-            // TODO: 
+            // TODO: clean other valuable columns:
             // - assets
             // - market_cap (never filled correctly on a 25k sample)
             // - CEO
@@ -242,28 +242,26 @@ namespace ETL
             // - founded 
             // - headquarters
 
-
             RenameColumn(connectionString, dbName, "TestWikiCompanyDataRaw", "PageTitle", "wiki_name");
 
+            // ----------------------------------------------------------------------------------------
+            // 4. Remove all useless columns
             var columnsToKeep = new List<string>() { "wiki_name",
                 "name",
                 "isin",
                 "revenue_year",
                 "revenue_amount",
                 "revenue_src_url",
-                //"revenue",
                 "revenue_currency",
                 "num_employees_year",
                 "num_employees",
                 "net_income_year",
                 "net_income_amount",
                 "net_income_src_url",
-                //"net_income",
                 "net_income_currency",
                 "operating_income_year",
                 "operating_income_amount",
                 "operating_income_src_url",
-                //"operating_income",
                 "operating_income_currency",
                 "industry",
                 "hq_country"};
